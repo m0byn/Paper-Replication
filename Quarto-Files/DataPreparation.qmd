@@ -1,0 +1,90 @@
+---
+title: "DataPreparation"
+author: "Manuel Zerobin"
+format:
+    html:
+      toc: true
+      toc-location: right-body
+      code-fold: true
+      code-tools: true
+      number-sections: true
+      download: [pdf, docx]
+    pdf: default
+    docx: default
+    commonmark:
+      code-link: true
+      code-fold: hide
+      code-copy: true
+editor: source
+toc: true
+execute:
+  cache: false 
+---
+
+# Project
+
+-   Official project name
+
+# Task
+
+-   Load data and prepare it such that it can be used in the analysis. The data is saved to .arrow and .parquet and should be imported in other quarto files.
+
+# Notes
+
+- here is some space for general notes
+
+## topic specific notes
+
+-   bla bla
+
+## Path to data
+
+-   Write location '//int.wsr.at/Nabu/ohne_Backup/PROJECTNAME/WorkingData/BaseData/XXX.arrow' or
+-   Write location '//int.wsr.at/Nabu/ohne_Backup/PROJECTNAME/WorkingData/BaseData/XXX.parquet' or
+-   Write location '//int.wsr.at/Nabu/ohne_Backup/PROJECTNAME/WorkingData/BaseData/XXX.fst'
+
+# Load relevant functions and packages
+
+```{r loadPackages}
+#| message: false
+#| warning: false
+library(here) # load here package for relative paths
+library(wifo.base) # separately load wifo.base
+
+source(here('R-Scripts', 'Functions.R')) # source relevant functions
+
+package_verification(packages = c('tidyverse', 
+                                  'collapse',
+                                  'lubridate',
+                                  'arrow',
+                                  'data.table',
+                                  'parallel',
+                                  'fst',
+                                  'dtplyr'), 
+                     type = 'script')
+```
+
+Set seed, just in case
+
+```{r setSeed}
+set.seed(123456789)
+```
+
+# Load data
+
+Two options: 
+  
+  1. draw only a sample 
+  2. import full dataset
+
+```{r loadData}
+# Draw sample if needed:
+
+# pfif.app = open_dataset(file.path('//int.wsr.at/Nabu/ohne_Backup/OeNB-Jubelfonds-Pflege-Gesundheit/PFIF-WIFO/Auswertung_Antragsdaten.parquet'))
+# samp = sample(nrow(pfif.app), 10000)
+# pfif.app = pfif.app[samp,] %>% collect(); invisible(gc())
+
+pfif.app.raw = as.data.table(read_parquet(file.path('//int.wsr.at/Nabu/ohne_Backup/OeNB-Jubelfonds-Pflege-Gesundheit/PFIF-WIFO/Auswertung_Antragsdaten.parquet'))); invisible(gc())
+pfif.trans.raw = as.data.table(read_parquet(file.path('//int.wsr.at/Nabu/ohne_Backup/OeNB-Jubelfonds-Pflege-Gesundheit/PFIF-WIFO/Auswertung_Auszahlungsdaten.parquet'))); invisible(gc())
+pfif.hvis.raw = as.data.table(read_parquet(file.path('//int.wsr.at/Nabu/ohne_Backup/OeNB-Jubelfonds-Pflege-Gesundheit/PFIF-WIFO/Auswertung_Hausbesuchsdaten.parquet'))); invisible(gc())
+```

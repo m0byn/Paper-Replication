@@ -1,0 +1,71 @@
+---
+title: "Visualisation"
+author: "Manuel Zerobin"
+format:
+    html:
+      toc: true
+      toc-location: right-body
+      code-fold: true
+      code-tools: true
+      number-sections: true
+      download: [pdf, docx]
+    pdf: default
+    docx: default
+    commonmark:
+      code-link: true
+      code-fold: hide
+      code-copy: true
+editor: source
+toc: true
+execute:
+  cache: false 
+---
+
+# Project
+
+-   PROJECTNAME
+
+# Task
+
+-   For a more general project overview see [Project.md](Project.md).
+-   Visualize the available data to get a descriptive overview. 
+
+## Path to data
+
+-   Read location `//int.wsr.at/Nabu/ohne_Backup/mzerobin/PROJECTNAME/RawData/`
+-   Write location `//int.wsr.at/Nabu/ohne_Backup/mzerobin/PROJECTNAME/BaseData/`
+
+# Load relevant functions and packages
+
+```{r loadPackages}
+#| message: false
+#| warning: false
+
+library(here) # load here package for relative paths
+library(wifo.base) # separately load wifo.base
+
+source(here('R-Scripts', 'Functions.R')) # source relevant functions
+
+package_verification(packages = c('tidyverse', 
+                                  'collapse',
+                                  'lubridate',
+                                  'arrow',
+                                  'data.table',
+                                  'parallel',
+                                  'fst',
+                                  'dtplyr',
+                                  'knitr',
+                                  'kableExtra'), 
+                     type = 'script')
+```
+
+Set seed, just in case:
+
+```{r setSeed}
+set.seed(123456789)
+```
+
+# Dataset 1
+
+
+# Dataset 2

@@ -1,0 +1,12 @@
+Data/**
+
+# Exclude what you don't want in Rendered
+Quarto-Files/Rendered/*/*.html
+Quarto-Files/Rendered/*/*_files/figure-html/
+Quarto-Files/Rendered/*/*_files/libs/
+
+# Cache folder
+Quarto_files/MergeData_cache/
+
+# Windows thumbnail cache
+Thumbs.db
