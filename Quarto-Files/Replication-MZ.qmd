@@ -23,15 +23,11 @@ execute:
 
 # Project
 
--   Official project name
+-   Replication of: Gonzalez-Navarro, Marco. 2013. "Deterrence and Geographical Externalities in Auto Theft." American Economic Journal: Applied Economics 5 (4): 92–110
 
 # Task
 
--   Load data and prepare it such that it can be used in the analysis. The data is saved to .arrow and .parquet and should be imported in other quarto files.
-
-# Notes
-
-- here is some space for general notes
+-   Load data and run replication of provided Stata code in R. After running the replication, an attempt is made to implement the Callaway St'Anna estimator. 
 
 # Load relevant functions and packages
 
@@ -116,45 +112,66 @@ kable(desc.stats, caption = "TABLE 1—DESCRIPTIVE STATISTICS")
 
 ```{r surpriseInvest}
 # Isolate and describe the LJmodel discrepancy problem
-cat("=== LOJACK MODEL DISCREPANCY ANALYSIS ===\n\n")
-
 # 1. Current data summary
-cat("1. CURRENT DATA:\n")
 current.ljmodel.table = table(data$LJmodel)
 current.mean = mean(data$LJmodel, na.rm = TRUE)
 current.n = nrow(data)
 
-print(current.ljmodel.table)
-cat("Current mean:", round(current.mean, 6), "\n")
-cat("Current N:", current.n, "\n\n")
+current.data.df <- data.frame(
+  Value = c("0", "1", "Total", "Mean"),
+  Count = c(
+    if ("0" %in% names(current.ljmodel.table)) current.ljmodel.table["0"] else 0,
+    if ("1" %in% names(current.ljmodel.table)) current.ljmodel.table["1"] else 0,
+    current.n,
+    ""
+  ),
+  Percentage = c(
+    round(if ("0" %in% names(current.ljmodel.table)) current.ljmodel.table["0"] / current.n * 100 else 0, 2),
+    round(if ("1" %in% names(current.ljmodel.table)) current.ljmodel.table["1"] / current.n * 100 else 0, 2),
+    "",
+    round(current.mean * 100, 2)
+  )
+)
+print(knitr::kable(current.data.df, caption = "Current Data Summary"))
 
 # 2. Reference table expectations
-cat("2. REFERENCE TABLE EXPECTATIONS:\n")
 reference.mean = 0.162
 reference.n = 16764
 expected.ljmodel.ones = reference.mean * reference.n
 
-cat("Reference mean:", reference.mean, "\n")
-cat("Reference N:", reference.n, "\n")
-cat("Expected LJmodel=1 observations:", round(expected.ljmodel.ones), "\n\n")
+reference.df <- data.frame(
+  Metric = c("Reference Mean", "Reference N", "Expected LJmodel=1 Observations"),
+  Value = c(reference.mean, reference.n, round(expected.ljmodel.ones))
+)
+print(knitr::kable(reference.df, caption = "Reference Table Expectations"))
 
 # 3. Quantify the discrepancy
-cat("3. DISCREPANCY QUANTIFICATION:\n")
 actual.ljmodel.ones = sum(data$LJmodel == 1)
 missing.observations = expected.ljmodel.ones - actual.ljmodel.ones
 mean.difference = reference.mean - current.mean
 
-cat("Actual LJmodel=1 observations:", actual.ljmodel.ones, "\n")
-cat("Missing LJmodel=1 observations:", round(missing.observations), "\n")
-cat("Mean difference:", round(mean.difference, 6), "\n")
-cat("Percentage difference:", round((mean.difference/reference.mean)*100, 2), "%\n\n")
+discrepancy.df <- data.frame(
+  Metric = c("Actual LJmodel=1 Observations", "Missing LJmodel=1 Observations", "Mean Difference", "Percentage Difference (%)"),
+  Value = c(
+    actual.ljmodel.ones,
+    round(missing.observations),
+    round(mean.difference, 6),
+    round((mean.difference / reference.mean) * 100, 2)
+  )
+)
+print(knitr::kable(discrepancy.df, caption = "Discrepancy Quantification"))
 
 # 4. Verify consistency
-cat("4. CONSISTENCY CHECK:\n")
 calculated.difference = mean.difference * current.n
-cat("Calculated missing obs from mean diff:", round(calculated.difference), "\n")
-cat("Direct count difference:", round(missing.observations), "\n")
-cat("Match:", round(calculated.difference) == round(missing.observations), "\n\n")
+consistency.df <- data.frame(
+  Metric = c("Calculated Missing Obs from Mean Diff", "Direct Count Difference", "Match"),
+  Value = c(
+    round(calculated.difference),
+    round(missing.observations),
+    round(calculated.difference) == round(missing.observations)
+  )
+)
+print(knitr::kable(consistency.df, caption = "Consistency Check"))
 ```
 
 # Estimation
@@ -349,12 +366,14 @@ kable(table_df,
 ```
 
 **Specification:** Negative binomial
+
 **Dependent variable:** Vehicle thefts
 
 **Notes:** Standard errors clustered at the state level in parentheses. Regressions control for: size of vintage by model and state, state × model fixed effects, and age dummies. LJM, NLJM stand for Lojack model and non-Lojack model, respectively. LJS and NLJS stand for Lojack and non-Lojack program states, respectively. After refers to after program implementation in the state (row 2) or in the nearest program state (rows 3 and 4). dis. pct. refers to distance percentile. Thirty-third percentile cutoff is at 320 km; sixty-sixth percentile cutoff is at 935 km.
-`***` Significant at the 1 percent level.
-`**` Significant at the 5 percent level.
-`*` Significant at the 10 percent level.
+
+- `***` Significant at the 1 percent level.
+- `**` Significant at the 5 percent level.
+- `*` Significant at the 10 percent level.
 
 ```{r table3}
 # Calculate group sizes for Table 3
@@ -673,11 +692,13 @@ Next, I aggregate the group–time ATTs to a single “simple” overall ATT and
 Taken together, these results indicate that, for this application, the TWFE estimator and the CS estimator agree closely on the average deterrence effect of Lojack, suggesting that the classic TWFE weighting issues do not generate large bias in the main coefficient. However, the CS event-time estimates and the formal pre-trend test highlight non-flat pre-treatment dynamics, which cautions against interpreting the estimated ATT as arising from perfectly parallel trends between treated and never-treated units.
 
 ```{r estimate2EventStudy}
+#| warning: false
+
 # Event study aggregation for model×state CS results
 cs.dynamic = aggte(cs.ms.results, type = "dynamic")
 
-cat("\n=== DYNAMIC TREATMENT EFFECTS (CS, model×state) ===\n")
-summary(cs.dynamic)
+summary(cs.dynamic) %>%
+  kable(digits = 2, caption = "Dynamic Treatment Effects (CS, model×state)")
 
 # Event-study plot
 p.event = ggdid(cs.dynamic) +
@@ -702,8 +723,6 @@ ggsave(
   here("Output", 'Plots', "event_study_callaway_santanna_model_state.png"),
   p.event, width = 10, height = 6, dpi = 300
 )
-
-cat("\nEvent study plot saved to: output/event_study_callaway_santanna_model_state.png\n")
 ```
 
 The dynamic aggregation of the CS estimates provides an event‑study view of the treatment effect relative to the year of Lojack introduction. The overall average ATT across post‑treatment event times is about −0.88 with a standard error of 0.23, implying a sizeable and statistically significant reduction in log thefts following treatment.
