@@ -39,7 +39,6 @@ execute:
 #| message: false
 #| warning: false
 library(here) # load here package for relative paths
-library(wifo.base) # separately load wifo.base
 
 source(here('R-Scripts', 'Functions.R')) # source relevant functions
 
