@@ -2,8 +2,6 @@
 
 All relevant files related to the replication of Gonzalez-Navarro, Marco. 2013. "Deterrence and Geographical Externalities in Auto Theft." American Economic Journal: Applied Economics 5 (4): 92–110 is included.
 
-For a more detailed project and task description see [Project.md](Project.md).
-
 # Directory structure
 
 - [Quarto-Files](Quarto-Files): includes all .qmd files.
@@ -11,18 +9,10 @@ For a more detailed project and task description see [Project.md](Project.md).
 - [R-Scripts](R-Scripts): includes all .R files, usually Functions.R and qmd_rendering.R.
 - [Output](Output): includes all output, i.e. [plots](Output/Plots), [tables](Output/Tables), specifically saved to the respective folders.
 - [Supplementary-Files](Supplementary-Files): includes all relevant documentation and other files.
-
-# Data
-
-- Original zipped data is located here: N:\ext_Projekte\PROJECTNAME\30_Daten\
-- Data what is worked with is located here: '//int.wsr.at/Nabu/ohne_Backup/PROJECTNAME/
-    - Note, format is parquet/arrow to speed up reading and writing the data.
 	
 # Files relevant to programming
 
 All relevant work is done using quarto.
 
-- [LoadData](Quarto-Files/Rendered/LoadData/LoadData.md): converts data from various formats to .arrow or .parquet for efficiency, this script is usually run only once at the beginning.
-- [DataPreparation](Quarto-Files/Rendered/DataPreparation/DataPreparation.md): the script does all data preparation before one can run the analysis.
-- [Visualisation](Quarto-Files/Rendered/Visualisation/Visualisation.md): the script does the descriptive visualisation of the available data.
-- [Analysis](Quarto-Files/Rendered/Analysis/Analysis.md): includes all code relevant for the analysis.
+
+- [Replication-MZ](Quarto-Files/Rendered/Replication-MZ/Replication-MZ.md): the script does all data preparation before one can run the analysis.
