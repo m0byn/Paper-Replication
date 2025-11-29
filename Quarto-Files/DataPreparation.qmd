@@ -508,411 +508,187 @@ kable(
 `**` Significant at the 5 percent level. 
 `*` Significant at the 10 percent level.
 
-# Estimation 2.0
+# CS estimation:
 
-Prepare Data for Callaway & Sant'Anna
+I implement two specifications of the CS estimator:
 
-The did package requires:
+1. closest possiblbe to original specification (not working properly)
+2. next closest working specification
 
-    idname: Unit identifier (must be numeric and unique over entire panel)
+## Closest to original specification
 
-    tname: Time period
-
-    gname: Treatment cohort (year first treated, 0 = never treated)
-
-    yname: Outcome variable
-
-
-```{r}
-# Create proper panel structure for CS estimator
-data.cs = data %>%
-  mutate(
-    # Create unique unit ID (model × state combination)
-    unit.id = as.numeric(as.factor(paste0(model_group_code, "_", state_code))),
-    
-    # Treatment cohort: when did this unit first receive Lojack?
-    cohort = case_when(
-      LJstate == 1 & LJmodel == 1 ~ 2001,  # Lojack states with Lojack models treated in 2001
-      LJstate == 0 ~ 0,                     # Non-Lojack states never treated
-      LJstate == 1 & LJmodel == 0 ~ 0,     # Lojack states but non-Lojack models = not treated
-      TRUE ~ 0
-    ),
-    
-    # Time variable
-    time = yr_stolen,
-    
-    # Outcome
-    outcome = thefts,
-    
-    # Additional useful variables
-    log.sales = log(sales + 1),
-    age.cat = case_when(
-      age == 0 ~ "New",
-      age == 1 ~ "One_Year", 
-      age >= 2 ~ "Two_Plus"
-    )
-  )
-
-# Create final CS dataset with only needed variables
-data.cs.final = data.cs[, c("unit.id", "time", "cohort", "outcome", "sales", "log.sales", 
-                           "age", "age.cat", "LJ", "LJstate", "LJmodel", 
-                           "model_group_code", "state_code", "id")]
-
-# Ensure proper ordering
-data.cs.final = data.cs.final[order(data.cs.final$unit.id, data.cs.final$time), ]
-
-# Display summary
-cat("=== CS DATA PREPARATION COMPLETE ===\n")
-cat("Dataset dimensions:", nrow(data.cs.final), "rows ×", ncol(data.cs.final), "columns\n")
-cat("Units:", n_distinct(data.cs.final$unit.id), "\n")
-cat("Time periods:", paste(range(data.cs.final$time), collapse = " to "), "\n")
-
-# Cohort structure
-cat("\nCohort structure:\n")
-table(data.cs.final$cohort) %>% print()
-
-# Sample data
-cat("\nFirst few observations:\n")
-head(data.cs.final) %>% print()
-
-cat("\n=== READY FOR CALLAWAY & SANT'ANNA ===\n")
-cat("Variable names for att_gt():\n")
-cat("- idname: 'unit.id'\n")
-cat("- tname: 'time'\n")
-cat("- gname: 'cohort'\n") 
-cat("- yname: 'outcome'\n")
-cat("- data: data.cs.final\n")
-```
-
-
-```{r}
-# Load did package
-library(did)
-
-# Step 3: Estimate Group-Time Average Treatment Effects (ATT(g,t))
-# For multi-period data, we need to use the correct specification
-cs.results = att_gt(
-  yname = "outcome",
-  tname = "time",
-  idname = "unit.id", 
-  gname = "cohort",
-  data = data.cs.final,
-  control_group = "nevertreated",  # Use never-treated units as controls
-  anticipation = 0,                 # No anticipation effects
-  weightsname = NULL,               # No weights
-  alp = 0.05,                       # 95% confidence intervals
-  bstrap = TRUE,                    # Bootstrap inference
-  biters = 1000,                    # Number of bootstrap iterations
-  clustervars = "state_code",       # Cluster at state level
-  est_method = "dr",                # Use doubly-robust (default, works better for multi-period)
-  base_period = "universal",        # Use universal base period
-  print_details = TRUE,
-  allow_unbalanced_panel = TRUE     # Allow unbalanced panel
-)
-
-# Display results
-summary(cs.results)
-
-```
-
-
-```{r}
-# Step 4: Aggregate to Overall ATT
-# Simple weighted average of all group-time ATTs
-cs.simple = aggte(cs.results, type = "simple")
-summary(cs.simple)
-
-cat("\n=== OVERALL ATT COMPARISON ===\n")
-cat("TWFE estimate (from Table 2, Column 3):", round(coef(model.t2.c3)["LJ"], 3), "\n")
-cat("CS overall ATT:", round(cs.simple$overall.att, 3), "\n")
-cat("CS standard error:", round(cs.simple$overall.se, 3), "\n")
-
-# Calculate percentage change for CS
-irr.cs = exp(cs.simple$overall.att)
-pct.change.cs = (irr.cs - 1) * 100
-cat("CS percentage effect:", round(pct.change.cs, 1), "%\n")
-
-```
-
-Key Findings:
-
-TWFE vs. Callaway & Sant'Anna:
-
-    TWFE estimate: -0.663 (from your Table 2, Column 3)
-    CS overall ATT: -2.203 (significant at 95% level)
-    Difference: CS shows a much larger treatment effect
-
-CS Results:
-
-    Overall ATT: -2.203 (significant)
-    Percentage effect: -89% reduction in thefts
-    95% CI: [-4.267, -0.140]
-
-This suggests that the TWFE approach may have been underestimating the true treatment effect, which is a common issue when treatment effects are heterogeneous across groups and time periods. The CS method accounts for this heterogeneity properly.
-
-The CS estimate indicates the Lojack program reduced vehicle thefts by approximately 89% on average for treated units.
-
-
-```{r}
-# Step 5: Dynamic Effects (Event Study)
-# Aggregate to event-study specification
-cs.dynamic = aggte(cs.results, type = "dynamic")
-summary(cs.dynamic)
-
-```
-
-
-```{r}
-# Plot event study
-ggdid(cs.dynamic, 
-      title = "Event Study: Lojack Introduction",
-      xlab = "Years Relative to Treatment",
-      ylab = "ATT") +
-  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
-  theme_minimal()
-
-```
-
-
-```{r}
-# Step 6: Group-Specific Effects
-# Aggregate by treatment cohort
-cs.group = aggte(cs.results, type = "group")
-summary(cs.group)
-
-cat("\n=== COHORT-SPECIFIC EFFECTS ===\n")
-cat("Cohort 2001 (Lojack states) ATT:", round(cs.group$overall.att, 3), "\n")
-cat("Standard error:", round(cs.group$overall.se, 3), "\n")
-
-```
-
-
-```{r}
-# Step 7: Pre-Trends Test (Fixed)
-# Check if pre-treatment effects are jointly zero
-pretrend.test = cs.dynamic$att.egt[cs.dynamic$egt < 0]
-pretrend.se = cs.dynamic$se.egt[cs.dynamic$egt < 0]
-
-cat("=== PRE-TRENDS TEST ===\n")
-if (length(pretrend.test) > 0) {
-  cat("Pre-treatment periods:\n")
-  for (i in 1:length(pretrend.test)) {
-    if (!is.na(pretrend.se[i])) {
-      z.stat = pretrend.test[i] / pretrend.se[i]
-      p.val = 2 * (1 - pnorm(abs(z.stat)))
-      cat(sprintf("  Period %d: ATT = %.3f (SE = %.3f, p = %.3f)\n", 
-                  cs.dynamic$egt[cs.dynamic$egt < 0][i],
-                  pretrend.test[i], 
-                  pretrend.se[i], 
-                  p.val))
-    } else {
-      cat(sprintf("  Period %d: ATT = %.3f (SE = NA, reference period)\n", 
-                  cs.dynamic$egt[cs.dynamic$egt < 0][i],
-                  pretrend.test[i]))
-    }
-  }
-} else {
-  cat("No pre-treatment periods available\n")
-}
-
-# Overall pre-test p-value from original results
-if (!is.null(cs.results$ptests) && !is.na(cs.results$ptests$pval)) {
-  cat("\nOverall pre-test p-value:", round(cs.results$ptests$pval, 3), "\n")
-} else {
-  cat("\nOverall pre-test p-value: Not available\n")
-}
-
-```
-
-
-```{r}
-# Step 8: Comparison Table
-# Create comprehensive comparison table
-comparison.table = data.frame(
-  Method = c("TWFE (Original)", "Callaway & Sant'Anna"),
-  Coefficient = c(
-    sprintf("%.3f***", coef(model.t2.c3)["LJ"]),
-    sprintf("%.3f*", cs.simple$overall.att)
-  ),
-  SE = c(
-    sprintf("(%.3f)", sqrt(diag(vcov(model.t2.c3)))["LJ"]),
-    sprintf("(%.3f)", cs.simple$overall.se)
-  ),
-  Pct_Change = c(
-    sprintf("%.1f%%", (exp(coef(model.t2.c3)["LJ"]) - 1) * 100),
-    sprintf("%.1f%%", pct.change.cs)
-  ),
-  N_Obs = c(nrow(data), nrow(data.cs.final))
-)
-
-kable(comparison.table,
-      caption = "COMPARISON: TWFE vs. Callaway & Sant'Anna Estimators",
-      align = c("l", "c", "c", "c", "c"))
-
-```
-
-
-```{r}
-# Statistical test: Are they significantly different?
-diff = coef(model.t2.c3)["LJ"] - cs.simple$overall.att
-se.diff = sqrt(sqrt(diag(vcov(model.t2.c3)))["LJ"]^2 + cs.simple$overall.se^2)
-z.diff = diff / se.diff
-p.diff = 2 * (1 - pnorm(abs(z.diff)))
-
-cat("=== DIFFERENCE TEST ===\n")
-cat("Difference (TWFE - CS):", round(diff, 3), "\n")
-cat("SE of difference:", round(se.diff, 3), "\n")
-cat("Z-statistic:", round(z.diff, 2), "\n")
-cat("P-value:", round(p.diff, 3), "\n")
-cat("Conclusion:", ifelse(p.diff < 0.05, 
-                          "SIGNIFICANTLY DIFFERENT - TWFE appears biased", 
-                          "NOT significantly different"), "\n")
-
-```
-
-
-
-    Overall Effects:
-        TWFE: -48.5% reduction in thefts
-        CS: -89.0% reduction in thefts
-
-    Pre-trends: Satisfied (p = 0.286 for period -2)
-
-    Dynamic Effects: Treatment effects grow stronger over time (-0.45 → -3.78 → -6.29)
-
-    Statistical Comparison: The TWFE and CS estimates are not significantly different (p = 0.144), suggesting both methods are consistent in this application.
-
-The CS method shows a larger treatment effect, but the difference isn't statistically significant. Both methods confirm that the Lojack program significantly reduced vehicle thefts.
-
-
-
-
-
-
-
-
-# AGAIN:
-
-
-```{r}
-data.cs <- data %>%
+```{r prepData1}
+# start from original data `data` used for Table 2
+data.cs.id = data %>%
   arrange(id, yr_stolen) %>%
   group_by(id) %>%
   mutate(
-    # first year this id is treated as LJ==1
+    # first year this id is treated
     first_treat_year = ifelse(any(LJ == 1),
                               min(yr_stolen[LJ == 1]),
                               NA_real_),
-    # cohort: first treatment year, or 0 if never treated
     cohort = ifelse(is.na(first_treat_year), 0, first_treat_year),
-    # time variable
     time = yr_stolen,
-    # unit id for did package
     unit.id = id
   ) %>%
   ungroup()
 
-data.cs %>%
+# check cohorts
+data.cs.id %>%
   group_by(cohort) %>%
   summarise(
     n_obs = n(),
     n_units = n_distinct(unit.id),
     .groups = "drop"
-  )
+  ) %>%
+  kable()
 ```
 
-```{r}
-# Run Callaway & Sant'Anna estimator
-# Using "reg" method for continuous outcome (log thefts)
-cat("\n=== ESTIMATING CALLAWAY & SANT'ANNA ===\n")
+The code above restructures the original thefts–sales dataset into the panel format required by the Callaway–Sant’Anna (CS) estimator, using the same observational unit as in the original paper: the cell `id × year` of theft. For each `id`, I compute the first year in which the Lojack indicator `LJ` turns one and define this as the treatment cohort; units that never receive Lojack are assigned to cohort `0`. The resulting cohort distribution shows `1,371` never‑treated units but only `1` treated unit in cohort `2001`, `3` treated units in cohort `2002`, and `30` treated units in cohort `2003`.
 
-cs.results = att_gt(
-  yname = "outcome",
-  tname = "time",
-  idname = "unit.id",
-  gname = "cohort",
-  data = data.cs,
-  control_group = "nevertreated",  # Use never-treated as controls
-  anticipation = 0,                 # No anticipation
-  weightsname = NULL,               
-  alp = 0.05,                       # 95% CI
-  bstrap = TRUE,                    # Bootstrap inference
-  biters = 1000,                    # Bootstrap iterations
-  clustervars = "state_code",       # Cluster at state level
-  est_method = "reg",               # Regression-based
-  print_details = FALSE
+Conceptually, this is the closest possible mapping of the original specification into the CS framework, because it preserves the original unit of observation, outcome, and treatment definition, and only adds the cohort and time variables that CS requires. However, from an estimation perspective, the treated cohorts—especially 2001 and 2002—are extremely small. This foreshadows that, even if the CS estimator can be run, group‑time average treatment effects for these early cohorts will be very noisy and asymptotics will be unreliable. In the next block, I attempt to run the CS estimator on this id‑level panel and show that, in practice, this “closest” specification does not work well.
+
+```{r est1}
+cs.id.results = try(
+  att_gt(
+    yname   = "thefts",
+    tname   = "time",
+    idname  = "unit.id",
+    gname   = "cohort",
+    data    = data.cs.id,
+    control_group = "nevertreated",
+    xformla = ~ log(sales) + factor(age),
+    est_method = "reg",
+    bstrap  = TRUE,
+    biters  = 500,              # reduce a bit for speed
+    clustervars = "state_code",
+    anticipation = 0,
+    alp = 0.05
+  ),
+  silent = TRUE
 )
 
-# Display group-time results
-summary(cs.results)
+cs.id.results
 ```
 
+**Conceptually:** this is the closest possible CS spec to the original nbreg:
 
-```{r}
-# Simple weighted average ATT
+- same unit (id),
+- same outcome (thefts),
+- same exposure (log sales),
+- same basic controls (age).
 
-cs.simple = aggte(cs.results, type = "simple")
+**Practically:** the implementation fails because:
 
-cat("\n")
-cat(strrep("=", 60), "\n")  # Or paste(rep("=", 60), collapse = "")
-cat("=== OVERALL ATT COMPARISON ===\n")
-cat(strrep("=", 60), "\n\n")
+- there are many periods (1999–2004),
+- some cohorts are tiny (1 unit in 2001, 3 units in 2002),
+- the internal routines in did (which build 2×2 comparisons) run into edge cases; the estimator is not numerically stable in this configuration.
 
-# TWFE estimate from your Table 2, Column 3
+For practical purposes, we proceed to a “next closest” specification that aggregates units to increase treated group sizes and allows the estimator to run.
+
+## Next closest specificaiont
+
+In this specification, I slightly coarsen the unit of observation from the original `id × year` cell to a `model–state–year` cell. For each combination of model group, state, and year of theft, I aggregate thefts and sales, and I carry forward the Lojack state and model indicators. I then define a panel where the unit is a model–state pair, time is the theft year, and the treatment cohort is determined by when a Lojack model first appears in a Lojack state: Jalisco in 2001, and Morelos, Mexico State, and the Federal District in 2002. All other model–state units are coded as never treated.
+
+```{r prepData2}
+data.cs.ms = data %>%
+  group_by(model_group_code, state_code, state, yr_stolen) %>%
+  summarise(
+    total.thefts = sum(thefts, na.rm = TRUE),
+    total.sales  = sum(sales,  na.rm = TRUE),
+    LJstate      = first(LJstate),
+    LJmodel      = first(LJmodel),
+    .groups = "drop"
+  ) %>%
+  mutate(
+    unit.id = as.numeric(as.factor(paste0(model_group_code, "_", state_code))),
+    time    = yr_stolen,
+    # cohort defined by state-level Lojack intro for Lojack models
+    cohort  = case_when(
+      state == "JALISCO" &
+        LJmodel == 1 ~ 2001,
+      state %in% c("MORELOS", "MEXICO", "DISTRITO FEDERAL") &
+        LJmodel == 1 ~ 2002,
+      TRUE ~ 0
+    ),
+    outcome = log(total.thefts + 1)
+  )
+
+# sanity check
+data.cs.ms %>%
+  group_by(cohort) %>%
+  summarise(
+    n_obs = n(),
+    n_units = n_distinct(unit.id),
+    n_states = n_distinct(state),
+    mean_thefts = mean(total.thefts, na.rm = TRUE),
+    .groups = "drop"
+  ) %>%
+  kable()
+```
+
+The cohort summary shows that this aggregation substantially increases the effective size of the treated groups compared to the id-level specification. Cohort 2001 (treated in 2001) now contains 9 model–state units and 52 observations, while cohort 2002 contains 25 units and 145 observations; the never‑treated group remains large with 1,371 units across 31 states. This is still very close to the original design—treatment remains defined at the Lojack model in Lojack states—but the larger treated cohorts make the Callaway–Sant’Anna estimator numerically stable and allow for meaningful group‑time and aggregated treatment effect estimates. In the next step, I apply the CS estimator to this model–state panel and compare the resulting ATT to the original TWFE estimates.
+
+```{r estimate2}
+cs.ms.results = att_gt(
+  yname   = "outcome",   # log(total.thefts + 1)
+  tname   = "time",
+  idname  = "unit.id",
+  gname   = "cohort",
+  data    = data.cs.ms,
+  control_group = "nevertreated",
+  est_method = "reg",
+  bstrap  = TRUE,
+  biters  = 1000,
+  clustervars = "state_code",
+  anticipation = 0,
+  alp = 0.05
+)
+
+summary(cs.ms.results)
+```
+
+The group–time results show that, for the 2001 cohort, treatment effects become strongly negative after Lojack introduction, with especially large deterrence effects in later years (e.g. 2003–2004). For the 2002 cohort, point estimates are also negative in post-treatment years but are less precisely estimated, with wide confidence bands. Importantly, several pre-treatment ATT(g,t) are clearly positive and statistically different from zero, and the built-in pre-test rejects the null of parallel trends (p ≈ 0.015). This suggests that, at the model–state level, treated units were already evolving differently from never-treated units before Lojack was introduced, which weakens the credibility of the strict parallel trends assumption.
+
+```{r estimate2aggregate}
+cs.ms.simple = aggte(cs.ms.results, type = "simple")
+
 twfe.coef = coef(model.t2.c3)["LJ"]
-twfe.se = sqrt(diag(vcov(model.t2.c3)))["LJ"]
-twfe.pct = (exp(twfe.coef) - 1) * 100
+twfe.se   = sqrt(diag(vcov(model.t2.c3)))["LJ"]
+twfe.pct  = (exp(twfe.coef) - 1) * 100
 
-# CS estimate
-cs.coef = cs.simple$overall.att
-cs.se = cs.simple$overall.se
-cs.pct = (exp(cs.coef) - 1) * 100
+cs.coef = cs.ms.simple$overall.att
+cs.se   = cs.ms.simple$overall.se
+cs.pct  = (exp(cs.coef) - 1) * 100
 
-cat("TWFE (Original Estimator):\n")
-cat("  Coefficient: ", sprintf("%.3f", twfe.coef), "\n")
-cat("  Std. Error:  ", sprintf("%.3f", twfe.se), "\n")
-cat("  % Effect:    ", sprintf("%.1f%%", twfe.pct), "\n\n")
-
-cat("Callaway & Sant'Anna:\n")
-cat("  Overall ATT: ", sprintf("%.3f", cs.coef), "\n")
-cat("  Std. Error:  ", sprintf("%.3f", cs.se), "\n")
-cat("  % Effect:    ", sprintf("%.1f%%", cs.pct), "\n\n")
-
-# Test for significant difference
-diff = twfe.coef - cs.coef
-se.diff = sqrt(twfe.se^2 + cs.se^2)
-z.stat = diff / se.diff
-p.val = 2 * (1 - pnorm(abs(z.stat)))
-
-cat("Difference Test:\n")
-cat("  TWFE - CS:   ", sprintf("%.3f", diff), "\n")
-cat("  SE:          ", sprintf("%.3f", se.diff), "\n")
-cat("  Z-statistic: ", sprintf("%.2f", z.stat), "\n")
-cat("  P-value:     ", sprintf("%.3f", p.val), "\n")
-cat("  Conclusion:  ", ifelse(p.val < 0.05, 
-                              "SIGNIFICANTLY DIFFERENT", 
-                              "Not significantly different"), "\n")
-cat(strrep("=", 60), "\n")  # Or: cat(paste(rep("=", 60), collapse = ""), "\n")
-
+cbind(
+  method      = c("TWFE", "CS (model×state)"),
+  coef        = round(c(twfe.coef, cs.coef), 2),
+  se          = round(c(twfe.se, cs.se), 2),
+  pct_effect  = round(c(twfe.pct, cs.pct), 2)
+)
 ```
 
+Next, I aggregate the group–time ATTs to a single “simple” overall ATT and compare it to the original TWFE coefficient on Lojack. The TWFE specification from Table 2, column 3 yields a coefficient of about −0.66, implying roughly a 48.5 percent reduction in thefts. The CS estimator delivers an overall ATT of about −0.77, corresponding to a 53.8 percent reduction. The point estimates are very similar in magnitude, and given the relatively large standard error on the CS estimate (≈ 0.29), the difference between −0.66 and −0.77 is not statistically significant.
 
-```{r}
-# Event study aggregation
-cs.dynamic = aggte(cs.results, type = "dynamic")
+Taken together, these results indicate that, for this application, the TWFE estimator and the CS estimator agree closely on the average deterrence effect of Lojack, suggesting that the classic TWFE weighting issues do not generate large bias in the main coefficient. However, the CS event-time estimates and the formal pre-trend test highlight non-flat pre-treatment dynamics, which cautions against interpreting the estimated ATT as arising from perfectly parallel trends between treated and never-treated units.
 
-cat("\n=== DYNAMIC TREATMENT EFFECTS ===\n")
+```{r estimate2EventStudy}
+# Event study aggregation for model×state CS results
+cs.dynamic = aggte(cs.ms.results, type = "dynamic")
+
+cat("\n=== DYNAMIC TREATMENT EFFECTS (CS, model×state) ===\n")
 summary(cs.dynamic)
 
-# Create event study plot
+# Event-study plot
 p.event = ggdid(cs.dynamic) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "red", size = 0.8) +
   labs(
     title = "Event Study: Lojack Introduction Effect on Auto Theft",
-    subtitle = "Callaway & Sant'Anna (2021) Estimator",
+    subtitle = "Callaway & Sant'Anna (2021), model×state specification",
     x = "Years Relative to Lojack Introduction",
-    y = "ATT (log thefts)",
-    caption = "Note: 95% pointwise confidence intervals. Red line at zero."
+    y = "ATT on log(total thefts + 1)",
+    caption = "95% pointwise confidence intervals; dashed line at 0."
   ) +
   theme_minimal(base_size = 12) +
   theme(
@@ -923,100 +699,36 @@ p.event = ggdid(cs.dynamic) +
 
 print(p.event)
 
-# Save plot
-ggsave(here("output", "event_study_callaway_santanna.png"), 
-       p.event, width = 10, height = 6, dpi = 300)
-
-cat("\nEvent study plot saved to: output/event_study_callaway_santanna.png\n")
-
-```
-
-
-
-```{r}
-# Aggregate by treatment cohort
-cs.group = aggte(cs.results, type = "group")
-
-cat("\n=== COHORT-SPECIFIC EFFECTS ===\n")
-summary(cs.group)
-
-# Extract and display cohort estimates
-cohort.results = data.frame(
-  Cohort = c("2001 (Jalisco)", "2002 (Morelos, Mexico, DF)"),
-  ATT = cs.group$att.egt,
-  SE = cs.group$se.egt,
-  Pct_Effect = (exp(cs.group$att.egt) - 1) * 100
-) %>%
-  mutate(
-    CI_Lower = ATT - 1.96 * SE,
-    CI_Upper = ATT + 1.96 * SE,
-    Significant = ifelse(abs(ATT / SE) > 1.96, "Yes", "No")
-  )
-
-kable(
-  cohort.results,
-  caption = "Cohort-Specific Treatment Effects",
-  digits = 3,
-  col.names = c("Cohort", "ATT", "SE", "% Effect", "CI Lower", "CI Upper", "Sig.")
+ggsave(
+  here("Output", 'Plots', "event_study_callaway_santanna_model_state.png"),
+  p.event, width = 10, height = 6, dpi = 300
 )
 
-cat("\nInterpretation:\n")
-cat("- Jalisco (2001): Early adopter effect\n")
-cat("- Other states (2002): One-year delayed adopter effect\n")
-cat("- Differences may reflect heterogeneity in treatment effects\n")
-
+cat("\nEvent study plot saved to: output/event_study_callaway_santanna_model_state.png\n")
 ```
 
+The dynamic aggregation of the CS estimates provides an event‑study view of the treatment effect relative to the year of Lojack introduction. The overall average ATT across post‑treatment event times is about −0.88 with a standard error of 0.23, implying a sizeable and statistically significant reduction in log thefts following treatment.
 
+The event‑time pattern is, however, not fully consistent with strict parallel trends. At event time −2 (two years before Lojack introduction), the estimated ATT is about +0.50 and clearly positive and significant, indicating that treated model–state units were already experiencing higher growth in thefts relative to never‑treated units prior to treatment. At event time −1, the pre‑treatment estimate is positive but imprecise and includes zero. From event time 0 onward, the effects turn negative and become increasingly large in absolute value: around −0.79 one year after treatment, about −1.27 two years after, and −1.37 three years after introduction, all precisely estimated.
 
-```{r}
-# Test parallel trends assumption
-cat("\n=== PRE-TRENDS TEST ===\n")
-
-# Extract pre-treatment ATTs
-pretrend.idx = which(cs.dynamic$egt < 0)
-
-if (length(pretrend.idx) > 0) {
-  pretrend.results = data.frame(
-    Period = cs.dynamic$egt[pretrend.idx],
-    ATT = cs.dynamic$att.egt[pretrend.idx],
-    SE = cs.dynamic$se.egt[pretrend.idx]
-  ) %>%
-    mutate(
-      Z_stat = ATT / SE,
-      P_value = 2 * (1 - pnorm(abs(Z_stat))),
-      Significant = ifelse(P_value < 0.05, "Yes", "No")
-    )
-  
-  cat("Pre-treatment effects (should be close to zero):\n\n")
-  print(pretrend.results, row.names = FALSE)
-  
-  # Joint test
-  n.pretrends = nrow(pretrend.results)
-  sig.pretrends = sum(pretrend.results$Significant == "Yes")
-  
-  cat("\n")
-  cat("Number of pre-treatment periods:", n.pretrends, "\n")
-  cat("Significant pre-trends:", sig.pretrends, "\n")
-  cat("Parallel trends assumption:", 
-      ifelse(sig.pretrends == 0, "SATISFIED ✓", "VIOLATED ✗"), "\n")
-} else {
-  cat("No pre-treatment periods available in event study.\n")
-  cat("Treatment begins at first observed period.\n")
-}
-
-```
-
-
-```{r}
-# Define the %R% operator for string repetition (base R)
+```{r estimate2Comparison}
+# Define repetition operator (for underlining in console summaries)
 `%R%` = function(x, n) paste(rep(x, n), collapse = "")
+
+# NOTE: Use your actual objects/variable names for 'twfe.coef', 'twfe.se', etc.
+#       In this context, you computed 'cs.ms.simple' from cs.ms.results
+#       and ran TWFE on your original full panel.
+# You likely want:
+#  twfe.coef, twfe.se, twfe.pct from model.t2.c3
+#  cs.coef  = cs.ms.simple$overall.att
+#  cs.se    = cs.ms.simple$overall.se
+#  cs.pct   = (exp(cs.ms.simple$overall.att) - 1) * 100
 
 # Build comparison table
 comparison.table = data.frame(
   Method = c("TWFE (Original)", "Callaway & Sant'Anna"),
   Specification = c("Negative binomial, model×state×vintage", 
-                    "OLS, model×state panel"),
+                    "Regression, model×state panel (log thefts)"),
   Coefficient = c(
     sprintf("%.3f***", twfe.coef),
     sprintf("%.3f%s", cs.coef,
@@ -1025,44 +737,28 @@ comparison.table = data.frame(
   ),
   SE = c(sprintf("(%.3f)", twfe.se), sprintf("(%.3f)", cs.se)),
   Pct_Change = c(sprintf("%.1f%%", twfe.pct), sprintf("%.1f%%", cs.pct)),
-  N_Obs = c(nrow(data), nrow(data.cs)),
-  N_Units = c(length(unique(data$id)), length(unique(data.cs$unit.id)))
+  N_Obs = c(nrow(data), nrow(data.cs.ms)),
+  N_Units = c(length(unique(data$id)), length(unique(data.cs.ms$unit.id)))
 )
 
 kable(
   comparison.table,
-  caption = "TABLE 4: COMPARISON OF TWFE AND CALLAWAY & SANT'ANNA ESTIMATORS",
+  caption = "TABLE 4: COMPARISON OF TWFE AND CALLAWAY & SANT'ANNA ESTIMATORS (model×state level)",
   align = c("l", "l", "c", "c", "c", "c", "c")
 )
-
-cat("\n")
-cat("=" %R% 60, "\n")
-cat("KEY TAKEAWAYS:\n")
-cat("=" %R% 60, "\n")
-
-if (abs(diff) < 0.05) {
-  cat("✓ TWFE and CS estimates are very similar\n")
-  cat("✓ Suggests minimal bias from treatment effect heterogeneity\n")
-  cat("✓ Original TWFE estimates appear robust\n")
-} else if (cs.coef < twfe.coef) {
-  cat("⚠ CS estimate is MORE NEGATIVE than TWFE\n")
-  cat("⚠ TWFE may underestimate deterrence effect\n")
-  cat("⚠ Forbidden comparisons creating negative weights\n")
-} else {
-  cat("⚠ CS estimate is LESS NEGATIVE than TWFE\n")
-  cat("⚠ TWFE may overestimate deterrence effect\n")
-  cat("⚠ Treatment effect heterogeneity biasing TWFE upward\n")
-}
 ```
 
+The comparison table summarizes the original TWFE estimate and the Callaway–Sant’Anna (CS) estimate from the model–state specification. The TWFE regression (negative binomial at the model–state–vintage level) yields a coefficient of about −0.663 with a very small standard error (0.018), implying an average theft reduction of roughly 48.5 percent for Lojack‑equipped vehicles. The CS estimator, applied to the aggregated model–state panel with log thefts as the outcome, produces an overall ATT of about −0.772 with a larger standard error (0.285), corresponding to an estimated reduction of roughly 53.8 percent.
 
+Substantively, both methods point to a large and economically meaningful deterrence effect of Lojack, and their point estimates are quite close in magnitude. The CS estimate is somewhat more negative, suggesting a slightly stronger average effect once forbidden comparisons are removed and only valid 2×2 DiD comparisons are used, but the difference (about 0.11 in log points) is small relative to its standard error. This pattern is consistent with the recent DiD literature: TWFE can, in principle, be biased by heterogeneous treatment effects and negative weights, but in this application the TWFE coefficient appears to lie very close to the more robust CS estimate. The main value added by CS here is not a radically different average effect, but rather a clearer decomposition of dynamics and pre‑trends.
 
-```{r}
-# Create coefficient comparison plot
+```{r estimate2Plot}
+# Coefficient comparison: TWFE vs CS (model×state)
+
 coef.comparison = data.frame(
-  Method = c("TWFE", "CS"),
+  Method   = c("TWFE", "CS (model×state)"),
   Estimate = c(twfe.coef, cs.coef),
-  SE = c(twfe.se, cs.se)
+  SE       = c(twfe.se,   cs.se)
 ) %>%
   mutate(
     CI_Lower = Estimate - 1.96 * SE,
@@ -1072,14 +768,14 @@ coef.comparison = data.frame(
 p.comparison = ggplot(coef.comparison, aes(x = Method, y = Estimate)) +
   geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
   geom_point(size = 4, color = "steelblue") +
-  geom_errorbar(aes(ymin = CI_Lower, ymax = CI_Upper), 
+  geom_errorbar(aes(ymin = CI_Lower, ymax = CI_Upper),
                 width = 0.2, size = 1, color = "steelblue") +
   labs(
-    title = "Comparison: TWFE vs. Callaway & Sant'Anna",
-    subtitle = "Effect of Lojack on Auto Theft (log scale)",
-    x = "",
-    y = "Coefficient Estimate",
-    caption = "Note: 95% confidence intervals shown"
+    title    = "Comparison: TWFE vs. Callaway & Sant'Anna",
+    subtitle = "Effect of Lojack on Auto Theft (log scale, model×state specification)",
+    x        = "",
+    y        = "Coefficient estimate",
+    caption  = "95% confidence intervals shown"
   ) +
   theme_minimal(base_size = 12) +
   theme(
@@ -1089,7 +785,8 @@ p.comparison = ggplot(coef.comparison, aes(x = Method, y = Estimate)) +
 
 print(p.comparison)
 
-ggsave(here("output", "twfe_vs_cs_comparison.png"), 
-       p.comparison, width = 8, height = 6, dpi = 300)
-
+ggsave(
+  here("Output", 'Plots', "twfe_vs_cs_comparison_model_state.png"),
+  p.comparison, width = 8, height = 6, dpi = 300
+)
 ```
