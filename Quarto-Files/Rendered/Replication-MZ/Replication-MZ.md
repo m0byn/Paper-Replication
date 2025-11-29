@@ -3,7 +3,6 @@ Manuel Zerobin
 
 - [Project](#project)
 - [Task](#task)
-- [Notes](#notes)
 - [Load relevant functions and
   packages](#load-relevant-functions-and-packages)
 - [Load data](#load-data)
@@ -15,17 +14,15 @@ Manuel Zerobin
 
 # Project
 
-- Official project name
+- Replication of: Gonzalez-Navarro, Marco. 2013. “Deterrence and
+  Geographical Externalities in Auto Theft.” American Economic Journal:
+  Applied Economics 5 (4): 92–110
 
 # Task
 
-- Load data and prepare it such that it can be used in the analysis. The
-  data is saved to .arrow and .parquet and should be imported in other
-  quarto files.
-
-# Notes
-
-- here is some space for general notes
+- Load data and run replication of provided Stata code in R. After
+  running the replication, an attempt is made to implement the Callaway
+  St’Anna estimator.
 
 # Load relevant functions and packages
 
@@ -197,218 +194,132 @@ original table. Let us investigate:
 
 ``` r
 # Isolate and describe the LJmodel discrepancy problem
-cat("=== LOJACK MODEL DISCREPANCY ANALYSIS ===\n\n")
-```
-
-</details>
-
-    === LOJACK MODEL DISCREPANCY ANALYSIS ===
-
-<details class="code-fold">
-<summary>Code</summary>
-
-``` r
 # 1. Current data summary
-cat("1. CURRENT DATA:\n")
-```
-
-</details>
-
-    1. CURRENT DATA:
-
-<details class="code-fold">
-<summary>Code</summary>
-
-``` r
 current.ljmodel.table = table(data$LJmodel)
 current.mean = mean(data$LJmodel, na.rm = TRUE)
 current.n = nrow(data)
 
-print(current.ljmodel.table)
+current.data.df <- data.frame(
+  Value = c("0", "1", "Total", "Mean"),
+  Count = c(
+    if ("0" %in% names(current.ljmodel.table)) current.ljmodel.table["0"] else 0,
+    if ("1" %in% names(current.ljmodel.table)) current.ljmodel.table["1"] else 0,
+    current.n,
+    ""
+  ),
+  Percentage = c(
+    round(if ("0" %in% names(current.ljmodel.table)) current.ljmodel.table["0"] / current.n * 100 else 0, 2),
+    round(if ("1" %in% names(current.ljmodel.table)) current.ljmodel.table["1"] / current.n * 100 else 0, 2),
+    "",
+    round(current.mean * 100, 2)
+  )
+)
+print(knitr::kable(current.data.df, caption = "Current Data Summary"))
 ```
 
 </details>
 
 
-        0     1 
-    14113  2651 
 
-<details class="code-fold">
-<summary>Code</summary>
+    Table: Current Data Summary
 
-``` r
-cat("Current mean:", round(current.mean, 6), "\n")
-```
-
-</details>
-
-    Current mean: 0.158136 
-
-<details class="code-fold">
-<summary>Code</summary>
-
-``` r
-cat("Current N:", current.n, "\n\n")
-```
-
-</details>
-
-    Current N: 16764 
+    |Value |Count |Percentage |
+    |:-----|:-----|:----------|
+    |0     |14113 |84.19      |
+    |1     |2651  |15.81      |
+    |Total |16764 |           |
+    |Mean  |      |15.81      |
 
 <details class="code-fold">
 <summary>Code</summary>
 
 ``` r
 # 2. Reference table expectations
-cat("2. REFERENCE TABLE EXPECTATIONS:\n")
-```
-
-</details>
-
-    2. REFERENCE TABLE EXPECTATIONS:
-
-<details class="code-fold">
-<summary>Code</summary>
-
-``` r
 reference.mean = 0.162
 reference.n = 16764
 expected.ljmodel.ones = reference.mean * reference.n
 
-cat("Reference mean:", reference.mean, "\n")
+reference.df <- data.frame(
+  Metric = c("Reference Mean", "Reference N", "Expected LJmodel=1 Observations"),
+  Value = c(reference.mean, reference.n, round(expected.ljmodel.ones))
+)
+print(knitr::kable(reference.df, caption = "Reference Table Expectations"))
 ```
 
 </details>
 
-    Reference mean: 0.162 
 
-<details class="code-fold">
-<summary>Code</summary>
 
-``` r
-cat("Reference N:", reference.n, "\n")
-```
+    Table: Reference Table Expectations
 
-</details>
-
-    Reference N: 16764 
-
-<details class="code-fold">
-<summary>Code</summary>
-
-``` r
-cat("Expected LJmodel=1 observations:", round(expected.ljmodel.ones), "\n\n")
-```
-
-</details>
-
-    Expected LJmodel=1 observations: 2716 
+    |Metric                          |     Value|
+    |:-------------------------------|---------:|
+    |Reference Mean                  |     0.162|
+    |Reference N                     | 16764.000|
+    |Expected LJmodel=1 Observations |  2716.000|
 
 <details class="code-fold">
 <summary>Code</summary>
 
 ``` r
 # 3. Quantify the discrepancy
-cat("3. DISCREPANCY QUANTIFICATION:\n")
-```
-
-</details>
-
-    3. DISCREPANCY QUANTIFICATION:
-
-<details class="code-fold">
-<summary>Code</summary>
-
-``` r
 actual.ljmodel.ones = sum(data$LJmodel == 1)
 missing.observations = expected.ljmodel.ones - actual.ljmodel.ones
 mean.difference = reference.mean - current.mean
 
-cat("Actual LJmodel=1 observations:", actual.ljmodel.ones, "\n")
+discrepancy.df <- data.frame(
+  Metric = c("Actual LJmodel=1 Observations", "Missing LJmodel=1 Observations", "Mean Difference", "Percentage Difference (%)"),
+  Value = c(
+    actual.ljmodel.ones,
+    round(missing.observations),
+    round(mean.difference, 6),
+    round((mean.difference / reference.mean) * 100, 2)
+  )
+)
+print(knitr::kable(discrepancy.df, caption = "Discrepancy Quantification"))
 ```
 
 </details>
 
-    Actual LJmodel=1 observations: 2651 
 
-<details class="code-fold">
-<summary>Code</summary>
 
-``` r
-cat("Missing LJmodel=1 observations:", round(missing.observations), "\n")
-```
+    Table: Discrepancy Quantification
 
-</details>
-
-    Missing LJmodel=1 observations: 65 
-
-<details class="code-fold">
-<summary>Code</summary>
-
-``` r
-cat("Mean difference:", round(mean.difference, 6), "\n")
-```
-
-</details>
-
-    Mean difference: 0.003864 
-
-<details class="code-fold">
-<summary>Code</summary>
-
-``` r
-cat("Percentage difference:", round((mean.difference/reference.mean)*100, 2), "%\n\n")
-```
-
-</details>
-
-    Percentage difference: 2.38 %
+    |Metric                         |     Value|
+    |:------------------------------|---------:|
+    |Actual LJmodel=1 Observations  | 2.651e+03|
+    |Missing LJmodel=1 Observations | 6.500e+01|
+    |Mean Difference                | 3.864e-03|
+    |Percentage Difference (%)      | 2.380e+00|
 
 <details class="code-fold">
 <summary>Code</summary>
 
 ``` r
 # 4. Verify consistency
-cat("4. CONSISTENCY CHECK:\n")
-```
-
-</details>
-
-    4. CONSISTENCY CHECK:
-
-<details class="code-fold">
-<summary>Code</summary>
-
-``` r
 calculated.difference = mean.difference * current.n
-cat("Calculated missing obs from mean diff:", round(calculated.difference), "\n")
+consistency.df <- data.frame(
+  Metric = c("Calculated Missing Obs from Mean Diff", "Direct Count Difference", "Match"),
+  Value = c(
+    round(calculated.difference),
+    round(missing.observations),
+    round(calculated.difference) == round(missing.observations)
+  )
+)
+print(knitr::kable(consistency.df, caption = "Consistency Check"))
 ```
 
 </details>
 
-    Calculated missing obs from mean diff: 65 
 
-<details class="code-fold">
-<summary>Code</summary>
 
-``` r
-cat("Direct count difference:", round(missing.observations), "\n")
-```
+    Table: Consistency Check
 
-</details>
-
-    Direct count difference: 65 
-
-<details class="code-fold">
-<summary>Code</summary>
-
-``` r
-cat("Match:", round(calculated.difference) == round(missing.observations), "\n\n")
-```
-
-</details>
-
-    Match: TRUE 
+    |Metric                                | Value|
+    |:-------------------------------------|-----:|
+    |Calculated Missing Obs from Mean Diff |    65|
+    |Direct Count Difference               |    65|
+    |Match                                 |     1|
 
 # Estimation
 
@@ -1039,8 +950,9 @@ THEFT</caption>
 
 TABLE 2—DETERRENCE AND GEOGRAPHICAL EXTERNALITIES IN AUTO THEFT
 
-**Specification:** Negative binomial **Dependent variable:** Vehicle
-thefts
+**Specification:** Negative binomial
+
+**Dependent variable:** Vehicle thefts
 
 **Notes:** Standard errors clustered at the state level in parentheses.
 Regressions control for: size of vintage by model and state, state ×
@@ -1050,8 +962,11 @@ non-Lojack program states, respectively. After refers to after program
 implementation in the state (row 2) or in the nearest program state
 (rows 3 and 4). dis. pct. refers to distance percentile. Thirty-third
 percentile cutoff is at 320 km; sixty-sixth percentile cutoff is at 935
-km. `***` Significant at the 1 percent level. `**` Significant at the 5
-percent level. `*` Significant at the 10 percent level.
+km.
+
+- `***` Significant at the 1 percent level.
+- `**` Significant at the 5 percent level.
+- `*` Significant at the 10 percent level.
 
 <details class="code-fold">
 <summary>Code</summary>
@@ -1669,19 +1584,8 @@ and never-treated units.
 # Event study aggregation for model×state CS results
 cs.dynamic = aggte(cs.ms.results, type = "dynamic")
 
-cat("\n=== DYNAMIC TREATMENT EFFECTS (CS, model×state) ===\n")
-```
-
-</details>
-
-
-    === DYNAMIC TREATMENT EFFECTS (CS, model×state) ===
-
-<details class="code-fold">
-<summary>Code</summary>
-
-``` r
-summary(cs.dynamic)
+summary(cs.dynamic) %>%
+  kable(digits = 2, caption = "Dynamic Treatment Effects (CS, model×state)")
 ```
 
 </details>
@@ -1712,6 +1616,8 @@ summary(cs.dynamic)
     Control Group:  Never Treated,  Anticipation Periods:  0
     Estimation Method:  Outcome Regression
 
+Table: Dynamic Treatment Effects (CS, model×state)
+
 <details class="code-fold">
 <summary>Code</summary>
 
@@ -1732,17 +1638,7 @@ p.event = ggdid(cs.dynamic) +
     plot.subtitle = element_text(size = 11, color = "gray30"),
     panel.grid.minor = element_blank()
   )
-```
 
-</details>
-
-    Warning: Using `size` aesthetic for lines was deprecated in ggplot2 3.4.0.
-    ℹ Please use `linewidth` instead.
-
-<details class="code-fold">
-<summary>Code</summary>
-
-``` r
 print(p.event)
 ```
 
@@ -1758,14 +1654,9 @@ ggsave(
   here("Output", 'Plots', "event_study_callaway_santanna_model_state.png"),
   p.event, width = 10, height = 6, dpi = 300
 )
-
-cat("\nEvent study plot saved to: output/event_study_callaway_santanna_model_state.png\n")
 ```
 
 </details>
-
-
-    Event study plot saved to: output/event_study_callaway_santanna_model_state.png
 
 The dynamic aggregation of the CS estimates provides an event‑study view
 of the treatment effect relative to the year of Lojack introduction. The
