@@ -33,16 +33,6 @@ execute:
 
 - here is some space for general notes
 
-## topic specific notes
-
--   bla bla
-
-## Path to data
-
--   Write location '//int.wsr.at/Nabu/ohne_Backup/PROJECTNAME/WorkingData/BaseData/XXX.arrow' or
--   Write location '//int.wsr.at/Nabu/ohne_Backup/PROJECTNAME/WorkingData/BaseData/XXX.parquet' or
--   Write location '//int.wsr.at/Nabu/ohne_Backup/PROJECTNAME/WorkingData/BaseData/XXX.fst'
-
 # Load relevant functions and packages
 
 ```{r loadPackages}
@@ -54,13 +44,19 @@ library(wifo.base) # separately load wifo.base
 source(here('R-Scripts', 'Functions.R')) # source relevant functions
 
 package_verification(packages = c('tidyverse', 
-                                  'collapse',
                                   'lubridate',
                                   'arrow',
                                   'data.table',
-                                  'parallel',
-                                  'fst',
-                                  'dtplyr'), 
+                                  'dtplyr',
+                                  'haven',
+                                  'fixest',
+                                  'MASS',
+                                  'modelsummary',
+                                  'knitr',
+                                  'kableExtra',
+                                  'ggplot2',
+                                  'did',
+                                  'dplyr'), 
                      type = 'script')
 ```
 
@@ -72,19 +68,1028 @@ set.seed(123456789)
 
 # Load data
 
-Two options: 
-  
-  1. draw only a sample 
-  2. import full dataset
-
 ```{r loadData}
-# Draw sample if needed:
+data = read_dta(here('Supplementary-Files/Replication-Package/Replication_files/data/thefts_sales.dta'))
+```
 
-# pfif.app = open_dataset(file.path('//int.wsr.at/Nabu/ohne_Backup/OeNB-Jubelfonds-Pflege-Gesundheit/PFIF-WIFO/Auswertung_Antragsdaten.parquet'))
-# samp = sample(nrow(pfif.app), 10000)
-# pfif.app = pfif.app[samp,] %>% collect(); invisible(gc())
+```{r sumStats}
+# Create descriptive statistics table
+desc.stats = data %>%
+  dplyr::select(sales, thefts, LJmodel, LJstate, LJ, age) %>%
+  summarise(
+    across(everything(), list(
+      mean = ~ mean(.x, na.rm = TRUE),
+      sd = ~ sd(.x, na.rm = TRUE),
+      min = ~ min(.x, na.rm = TRUE),
+      max = ~ max(.x, na.rm = TRUE)
+    ))
+  ) %>%
+  pivot_longer(everything(), names_to = "variable", values_to = "value") %>%
+  separate(variable, into = c("variable", "statistic"), sep = "_") %>%
+  pivot_wider(names_from = statistic, values_from = value) %>%
+  mutate(
+    Variable = case_when(
+      variable == "sales" ~ "Vintage size",
+      variable == "thefts" ~ "Annual thefts",
+      variable == "LJmodel" ~ "Lojack model = 1",
+      variable == "LJstate" ~ "Lojack state = 1",
+      variable == "LJ" ~ "Lojack",
+      variable == "age" ~ "Age of vehicle"
+    ),
+    Mean = round(mean, 3),
+    SD = round(sd, 2),
+    Min = as.integer(min),
+    Max = ifelse(max >= 1000, format(max, big.mark = ",", scientific = FALSE), as.character(as.integer(max)))
+  )
 
-pfif.app.raw = as.data.table(read_parquet(file.path('//int.wsr.at/Nabu/ohne_Backup/OeNB-Jubelfonds-Pflege-Gesundheit/PFIF-WIFO/Auswertung_Antragsdaten.parquet'))); invisible(gc())
-pfif.trans.raw = as.data.table(read_parquet(file.path('//int.wsr.at/Nabu/ohne_Backup/OeNB-Jubelfonds-Pflege-Gesundheit/PFIF-WIFO/Auswertung_Auszahlungsdaten.parquet'))); invisible(gc())
-pfif.hvis.raw = as.data.table(read_parquet(file.path('//int.wsr.at/Nabu/ohne_Backup/OeNB-Jubelfonds-Pflege-Gesundheit/PFIF-WIFO/Auswertung_Hausbesuchsdaten.parquet'))); invisible(gc())
+# Now select the final columns
+desc.stats = desc.stats %>%
+  dplyr::select(Variable, Mean, SD, Min, Max)
+
+# Display table
+kable(desc.stats, caption = "TABLE 1—DESCRIPTIVE STATISTICS")
+
+```
+
+**Notes:** N = 16,764. An observation is defined by a (state, car model, vintage, year of theft) combination. Vintage Size refers to total sales in a (state, car model, vintage) triplet. Age of car is in terms of completed years since sale (0 if the car is up to 12 months old, etc.). Sold with Lojack equals one if the car model was equipped with Lojack when the vehicle was sold. Lojack Models refers to the Ford vehicle models that participated in the Lojack program at some point between 1999 and 2004. Lojack states are the four states where Lojack was implemented between 1999 and 2004.
+
+**Surprise:** `Lojack model = 1` shows a value of `0.162` in the original table. Let us investigate:
+
+```{r surpriseInvest}
+# Isolate and describe the LJmodel discrepancy problem
+cat("=== LOJACK MODEL DISCREPANCY ANALYSIS ===\n\n")
+
+# 1. Current data summary
+cat("1. CURRENT DATA:\n")
+current.ljmodel.table = table(data$LJmodel)
+current.mean = mean(data$LJmodel, na.rm = TRUE)
+current.n = nrow(data)
+
+print(current.ljmodel.table)
+cat("Current mean:", round(current.mean, 6), "\n")
+cat("Current N:", current.n, "\n\n")
+
+# 2. Reference table expectations
+cat("2. REFERENCE TABLE EXPECTATIONS:\n")
+reference.mean = 0.162
+reference.n = 16764
+expected.ljmodel.ones = reference.mean * reference.n
+
+cat("Reference mean:", reference.mean, "\n")
+cat("Reference N:", reference.n, "\n")
+cat("Expected LJmodel=1 observations:", round(expected.ljmodel.ones), "\n\n")
+
+# 3. Quantify the discrepancy
+cat("3. DISCREPANCY QUANTIFICATION:\n")
+actual.ljmodel.ones = sum(data$LJmodel == 1)
+missing.observations = expected.ljmodel.ones - actual.ljmodel.ones
+mean.difference = reference.mean - current.mean
+
+cat("Actual LJmodel=1 observations:", actual.ljmodel.ones, "\n")
+cat("Missing LJmodel=1 observations:", round(missing.observations), "\n")
+cat("Mean difference:", round(mean.difference, 6), "\n")
+cat("Percentage difference:", round((mean.difference/reference.mean)*100, 2), "%\n\n")
+
+# 4. Verify consistency
+cat("4. CONSISTENCY CHECK:\n")
+calculated.difference = mean.difference * current.n
+cat("Calculated missing obs from mean diff:", round(calculated.difference), "\n")
+cat("Direct count difference:", round(missing.observations), "\n")
+cat("Match:", round(calculated.difference) == round(missing.observations), "\n\n")
+```
+
+# Estimation
+
+```{r modelEstimation}
+# Table 2 - Column 1: 
+# local x_ = "i.age id__*"
+# nbreg thefts `x_' LJ NLJM_LJS_After NLJS_LJM_After NLJS_NLJM_After, exposure(sales) cluster(state_code) technique(bfgs)
+model.t2.c1 = fenegbin(
+  thefts ~ LJ + NLJM_LJS_After + NLJS_LJM_After + NLJS_NLJM_After + i(age) | id,
+  data = data,
+  offset = ~log(sales),
+  vcov = ~state_code
+)
+
+# Table 2 - Column 2: 
+timetrendstate.vars = grep("^timetrendstate_", names(data), value = TRUE)
+formula.str = paste("thefts ~ LJ + NLJM_LJS_After + NLJS_LJM_After + NLJS_NLJM_After + i(age) +", 
+                     paste(timetrendstate.vars, collapse = " + "), "| id")
+model.t2.c2 = fenegbin(
+  as.formula(formula.str),
+  data = data,
+  offset = ~log(sales),
+  vcov = ~state_code
+)
+
+# Table 2 - Column 3:
+timetrendstate.vars = grep("^timetrendstate_", names(data), value = TRUE)
+timetrendstate2.vars = grep("^timetrendstate2_", names(data), value = TRUE)
+formula.str = paste("thefts ~ LJ + NLJM_LJS_After + NLJS_LJM_After + NLJS_NLJM_After + i(age) +", 
+                     paste(c(timetrendstate.vars, timetrendstate2.vars), collapse = " + "), "| id")
+model.t2.c3 = fenegbin(
+  as.formula(formula.str),
+  data = data,
+  offset = ~log(sales),
+  vcov = ~state_code
+)
+
+# Table 2 - Column 4: 
+timetrendstate.vars = grep("^timetrendstate_", names(data), value = TRUE)
+timetrendstate2.vars = grep("^timetrendstate2_", names(data), value = TRUE)
+formula.str = paste("thefts ~ LJ + NLJM_LJS_After + NLJS_LJM_After + NLJS_NLJM_After +", 
+                     paste(c(timetrendstate.vars, timetrendstate2.vars), collapse = " + "), "| id")
+model.t2.c4 = fenegbin(
+  as.formula(formula.str),
+  data = data[data$age == 1, ],
+  offset = ~log(sales),
+  vcov = ~state_code
+)
+
+# Table 2 - Column 5:
+timetrendstate.vars = grep("^timetrendstate_", names(data), value = TRUE)
+timetrendstate2.vars = grep("^timetrendstate2_", names(data), value = TRUE)
+nljs.ljm.after.dcat.vars = grep("^NLJS_LJM_After_dcat_", names(data), value = TRUE)
+nljs.nljm.after.dcat.vars = grep("^NLJS_NLJM_After_dcat_", names(data), value = TRUE)
+formula.str = paste("thefts ~ LJ + NLJM_LJS_After +", 
+                     paste(c(nljs.ljm.after.dcat.vars, nljs.nljm.after.dcat.vars, timetrendstate.vars, timetrendstate2.vars), collapse = " + "), "| id")
+model.t2.c5 = fenegbin(
+  as.formula(formula.str),
+  data = data[data$age == 1, ],
+  offset = ~log(sales),
+  vcov = ~state_code
+)
+
+# Table 2 - Column 6:
+data$model.x.yr.stolen = data$model_group_code * 10000 + data$yr_stolen
+model.t2.c6 = fenegbin(
+  thefts ~ LJ + NLJM_LJS_After + NLJS_LJM_After_Close + NLJS_NLJM_After_Close + i(age) | id + model.x.yr.stolen,
+  data = data,
+  offset = ~log(sales),
+  vcov = ~state_code
+)
+
+# Table 2 - Column 7:
+timetrendstate.vars = grep("^timetrendstate_", names(data), value = TRUE)
+timetrendstate2.vars = grep("^timetrendstate2_", names(data), value = TRUE)
+formula.str = paste("thefts ~ LJage0 + LJage1 + LJage2 + NLJM_LJS_After + NLJS_LJM_After + NLJS_NLJM_After + i(age) +", 
+                     paste(c(timetrendstate.vars, timetrendstate2.vars), collapse = " + "), "| id")
+model.t2.c7 = fenegbin(
+  as.formula(formula.str),
+  data = data,
+  offset = ~log(sales),
+  vcov = ~state_code
+)
+```
+
+
+```{r table2}
+# Function to safely extract coefficient and standard error
+safe_extract = function(model, var_name) {
+  tryCatch({
+    if (var_name %in% names(coef(model))) {
+      coef_val = coef(model)[var_name]
+      se_val = sqrt(diag(vcov(model)))[var_name]
+      
+      # Determine significance stars
+      p_val = 2 * (1 - pnorm(abs(coef_val / se_val)))
+      stars = ifelse(p_val < 0.001, "***",
+                    ifelse(p_val < 0.01, "**",
+                          ifelse(p_val < 0.05, "*", "")))
+      
+      # Format coefficient and standard error
+      coef_formatted = sprintf("%.2f%s", coef_val, stars)
+      se_formatted = sprintf("(%.3f)", se_val)
+      
+      return(list(coef = coef_formatted, se = se_formatted))
+    } else {
+      return(list(coef = "", se = ""))
+    }
+  }, error = function(e) {
+    return(list(coef = "", se = ""))
+  })
+}
+
+# Create table structure
+create_table_row = function(var_name, models) {
+  row_data = c(var_name)
+  se_data = c("")
+  
+  for (model in models) {
+    result = safe_extract(model, var_name)
+    row_data = c(row_data, result$coef)
+    se_data = c(se_data, result$se)
+  }
+  
+  return(rbind(row_data, se_data))
+}
+
+# List of models
+models = list(model.t2.c1, model.t2.c2, model.t2.c3, model.t2.c4, model.t2.c5, model.t2.c6, model.t2.c7)
+
+# Create table rows
+table_rows = list()
+
+# LJ = 1
+table_rows = rbind(table_rows, create_table_row("LJ", models))
+
+# NLJM LJS after = 1
+table_rows = rbind(table_rows, create_table_row("NLJM_LJS_After", models))
+
+# LJM NLJS after = 1
+table_rows = rbind(table_rows, create_table_row("NLJS_LJM_After", models))
+
+# NLJM NLJS after = 1
+table_rows = rbind(table_rows, create_table_row("NLJS_NLJM_After", models))
+
+# LJ = 1, first year on road (LJage0)
+lj_first_row = c("LJ = 1, first year on road", "", "", "", "", "", "", safe_extract(model.t2.c7, "LJage0")$coef)
+lj_first_se = c("", "", "", "", "", "", "", safe_extract(model.t2.c7, "LJage0")$se)
+table_rows = rbind(table_rows, lj_first_row, lj_first_se)
+
+# LJ = 1, second year on road (LJage1) 
+lj_second_row = c("LJ = 1, second year on road", "", "", "", "", "", "", safe_extract(model.t2.c7, "LJage1")$coef)
+lj_second_se = c("", "", "", "", "", "", "", safe_extract(model.t2.c7, "LJage1")$se)
+table_rows = rbind(table_rows, lj_second_row, lj_second_se)
+
+# Distance percentile interactions (only for column 5)
+dist_vars = c("NLJS_LJM_After_dcat_1", "NLJS_LJM_After_dcat_2", "NLJS_LJM_After_dcat_3",
+              "NLJS_NLJM_After_dcat_1", "NLJS_NLJM_After_dcat_2", "NLJS_NLJM_After_dcat_3")
+dist_labels = c("(LJM NLJS after = 1) × (dis. pct. < 33)",
+                "(LJM NLJS after = 1) × (33 < dis. pct. < 66)",
+                "(LJM NLJS after = 1) × (dis. pct. > 66)",
+                "(NLJM NLJS after = 1) × (dis. pct. < 33)",
+                "(NLJM NLJS after = 1) × (33 < dis. pct. < 66)",
+                "(NLJM NLJS after = 1) × (dis. pct. > 66)")
+
+for (i in 1:6) {
+  dist_row = c(dist_labels[i], "", "", "", "", safe_extract(model.t2.c5, dist_vars[i])$coef, "", "")
+  dist_se = c("", "", "", "", "", safe_extract(model.t2.c5, dist_vars[i])$se, "", "")
+  table_rows = rbind(table_rows, dist_row, dist_se)
+}
+
+# Add summary statistics
+summary_rows = rbind(
+  c("", "", "", "", "", "", "", ""),
+  c("Observations", "16,764", "16,764", "16,764", "5,185", "5,185", "16,764", "16,764"),
+  c("Time controls", "None", "Linear", "Quadratic", "Quadratic", "Quadratic", "Model × year", "Quadratic"),
+  c("State specific time controls", "No", "Yes", "Yes", "Yes", "Yes", "No", "Yes"),
+  c("Sample", "Full", "Full", "Full", "Age = 1", "Age = 1", "Full", "Full")
+)
+
+table_rows = rbind(table_rows, summary_rows)
+
+# Convert to data frame and create table
+table_df = as.data.frame(table_rows)
+colnames(table_df) = c("", "(1)", "(2)", "(3)", "(4)", "(5)", "(6)", "(7)")
+
+# Display table
+kable(table_df, 
+      caption = "TABLE 2—DETERRENCE AND GEOGRAPHICAL EXTERNALITIES IN AUTO THEFT",
+      align = c("l", rep("c", 7)))
+```
+
+**Specification:** Negative binomial
+**Dependent variable:** Vehicle thefts
+
+**Notes:** Standard errors clustered at the state level in parentheses. Regressions control for: size of vintage by model and state, state × model fixed effects, and age dummies. LJM, NLJM stand for Lojack model and non-Lojack model, respectively. LJS and NLJS stand for Lojack and non-Lojack program states, respectively. After refers to after program implementation in the state (row 2) or in the nearest program state (rows 3 and 4). dis. pct. refers to distance percentile. Thirty-third percentile cutoff is at 320 km; sixty-sixth percentile cutoff is at 935 km.
+`***` Significant at the 1 percent level.
+`**` Significant at the 5 percent level.
+`*` Significant at the 10 percent level.
+
+```{r table3}
+# Calculate group sizes for Table 3
+
+# NLJS group size (Non-Lojack states):
+nljs.stats = data %>%
+  group_by(id) %>%
+  summarise(
+    T_pre_geo_ext = mean(T_pre_geo_ext, na.rm = TRUE),
+    LJmodel = mean(LJmodel, na.rm = TRUE),
+    LJstate = mean(LJstate, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  summarise(
+    sum_NLJS_LJM = sum(T_pre_geo_ext[LJstate == 0 & LJmodel == 1], na.rm = TRUE),
+    sum_NLJS_NLJ = sum(T_pre_geo_ext[LJstate == 0 & LJmodel == 0], na.rm = TRUE)
+  )
+
+# LJS_LJM group size (Lojack states, Lojack models):
+ljs.ljm.stats = data %>%
+  group_by(id) %>%
+  summarise(T_pre_LJ = mean(T_pre_LJ, na.rm = TRUE), .groups = 'drop') %>%
+  summarise(T_LJ = sum(T_pre_LJ, na.rm = TRUE))
+
+# LJS_NLJM group size (Lojack states, Non-Lojack models):
+ljs.nljm.stats = data %>%
+  group_by(id) %>%
+  summarise(
+    T_pre_wthn_ext = mean(T_pre_wthn_ext, na.rm = TRUE),
+    LJmodel = mean(LJmodel, na.rm = TRUE),
+    LJstate = mean(LJstate, na.rm = TRUE),
+    .groups = 'drop'
+  ) %>%
+  summarise(T_wse = sum(T_pre_wthn_ext[LJstate == 1 & LJmodel == 0], na.rm = TRUE))
+
+# Extract preprogram means
+preprogram.mean.LJ = round(ljs.ljm.stats$T_LJ)
+preprogram.mean.NLJM_LJS = round(ljs.nljm.stats$T_wse)
+preprogram.mean.NLJS_LJM = round(nljs.stats$sum_NLJS_LJM)
+preprogram.mean.NLJS_NLJM = round(nljs.stats$sum_NLJS_NLJ)
+
+# Extract coefficients and standard errors for all treatment variables
+coef.LJ = coef(model.t2.c3)["LJ"]
+coef.NLJM_LJS = coef(model.t2.c3)["NLJM_LJS_After"]
+coef.NLJS_LJM = coef(model.t2.c3)["NLJS_LJM_After"]
+coef.NLJS_NLJM = coef(model.t2.c3)["NLJS_NLJM_After"]
+
+se.LJ = sqrt(diag(vcov(model.t2.c3)))["LJ"]
+se.NLJM_LJS = sqrt(diag(vcov(model.t2.c3)))["NLJM_LJS_After"]
+se.NLJS_LJM = sqrt(diag(vcov(model.t2.c3)))["NLJS_LJM_After"]
+se.NLJS_NLJM = sqrt(diag(vcov(model.t2.c3)))["NLJS_NLJM_After"]
+
+# Calculate IRR
+irr.LJ = exp(coef.LJ)
+irr.NLJM_LJS = exp(coef.NLJM_LJS)
+irr.NLJS_LJM = exp(coef.NLJS_LJM)
+irr.NLJS_NLJM = exp(coef.NLJS_NLJM)
+
+# Percent changes
+pct.change.LJ = (irr.LJ - 1) * 100
+pct.change.NLJM_LJS = (irr.NLJM_LJS - 1) * 100
+pct.change.NLJS_LJM = (irr.NLJS_LJM - 1) * 100
+pct.change.NLJS_NLJM = (irr.NLJS_NLJM - 1) * 100
+
+# Delta method: SE for percentage change = |IRR * SE_coef * 100|
+se.pct.LJ = abs(irr.LJ * se.LJ * 100)
+se.pct.NLJM_LJS = abs(irr.NLJM_LJS * se.NLJM_LJS * 100)
+se.pct.NLJS_LJM = abs(irr.NLJS_LJM * se.NLJS_LJM * 100)
+se.pct.NLJS_NLJM = abs(irr.NLJS_NLJM * se.NLJS_NLJM * 100)
+
+# Effects in terms of annual thefts
+effect.thefts.LJ = preprogram.mean.LJ * (irr.LJ - 1)
+effect.thefts.NLJS_NLJM = preprogram.mean.NLJS_NLJM * (irr.NLJS_NLJM - 1)
+
+# Delta method: SE for effect in thefts = |preprogram_mean * IRR * SE_coef|
+se.effect.LJ = abs(preprogram.mean.LJ * irr.LJ * se.LJ)
+se.effect.NLJS_NLJM = abs(preprogram.mean.NLJS_NLJM * irr.NLJS_NLJM * se.NLJS_NLJM)
+
+# Calculate z-statistics
+z.stat.LJ = coef.LJ / se.LJ
+z.stat.NLJM_LJS = coef.NLJM_LJS / se.NLJM_LJS
+z.stat.NLJS_LJM = coef.NLJS_LJM / se.NLJS_LJM
+z.stat.NLJS_NLJM = coef.NLJS_NLJM / se.NLJS_NLJM
+
+# Significance stars (two-tailed test)
+get_stars = function(z) {
+  ifelse(abs(z) > 3.291, "***",
+  ifelse(abs(z) > 2.576, "**",
+  ifelse(abs(z) > 1.96, "*", "")))
+}
+
+sig.LJ = get_stars(z.stat.LJ)
+sig.NLJM_LJS = get_stars(z.stat.NLJM_LJS)
+sig.NLJS_LJM = get_stars(z.stat.NLJS_LJM)
+sig.NLJS_NLJM = get_stars(z.stat.NLJS_NLJM)
+
+# Create Table 3 with standard errors
+table3.data = data.frame(
+  Variable = c("Preprogram mean annual thefts", 
+               "", 
+               "Effect of Lojack program (percent change)", 
+               "",
+               "Effect in terms of annual thefts",
+               ""),
+  Lojack_Lojack = c(
+    as.character(preprogram.mean.LJ),
+    "",
+    paste0(round(pct.change.LJ, 0), "%", sig.LJ),
+    paste0("(", round(se.pct.LJ, 1), ")"),
+    paste0(round(effect.thefts.LJ, 0), sig.LJ),
+    paste0("(", round(se.effect.LJ, 0), ")")
+  ),
+  Lojack_NonLojack = c(
+    as.character(preprogram.mean.NLJM_LJS),
+    "",
+    paste0(round(pct.change.NLJM_LJS, 0), "%", sig.NLJM_LJS),
+    paste0("(", round(se.pct.NLJM_LJS, 1), ")"),
+    "",
+    ""
+  ),
+  NonLojack_Lojack = c(
+    as.character(preprogram.mean.NLJS_LJM),
+    "",
+    paste0(round(pct.change.NLJS_LJM, 0), "%", sig.NLJS_LJM),
+    paste0("(", round(se.pct.NLJS_LJM, 1), ")"),
+    "",
+    ""
+  ),
+  NonLojack_NonLojack = c(
+    as.character(preprogram.mean.NLJS_NLJM),
+    "",
+    paste0(round(pct.change.NLJS_NLJM, 0), "%", sig.NLJS_NLJM),
+    paste0("(", round(se.pct.NLJS_NLJM, 1), ")"),
+    paste0(round(effect.thefts.NLJS_NLJM, 0), sig.NLJS_NLJM),
+    paste0("(", round(se.effect.NLJS_NLJM, 0), ")")
+  )
+)
+
+# Display table
+kable(
+  table3.data,
+  col.names = c("", "Lojack", "Non-Lojack", "Lojack", "Non-Lojack"),
+  caption = "TABLE 3—ESTIMATED IMPACT OF THE LOJACK PROGRAM IN TERMS OF STOLEN VEHICLES",
+  align = c("l", rep("c", 4))
+)
+```
+
+**Notes:** Preprogram mean thefts are the average (over time) of the sum of yearly thefts in all states in the group indicated by the column header before the introduction of the program. Effects of Lojack Program are the (IRR - 1) × 100 from column 3 in Table 2. Standard errors obtained using the delta method in parentheses.
+`***`Significant at the 1 percent level. 
+`**` Significant at the 5 percent level. 
+`*` Significant at the 10 percent level.
+
+# Estimation 2.0
+
+Prepare Data for Callaway & Sant'Anna
+
+The did package requires:
+
+    idname: Unit identifier (must be numeric and unique over entire panel)
+
+    tname: Time period
+
+    gname: Treatment cohort (year first treated, 0 = never treated)
+
+    yname: Outcome variable
+
+
+```{r}
+# Create proper panel structure for CS estimator
+data.cs = data %>%
+  mutate(
+    # Create unique unit ID (model × state combination)
+    unit.id = as.numeric(as.factor(paste0(model_group_code, "_", state_code))),
+    
+    # Treatment cohort: when did this unit first receive Lojack?
+    cohort = case_when(
+      LJstate == 1 & LJmodel == 1 ~ 2001,  # Lojack states with Lojack models treated in 2001
+      LJstate == 0 ~ 0,                     # Non-Lojack states never treated
+      LJstate == 1 & LJmodel == 0 ~ 0,     # Lojack states but non-Lojack models = not treated
+      TRUE ~ 0
+    ),
+    
+    # Time variable
+    time = yr_stolen,
+    
+    # Outcome
+    outcome = thefts,
+    
+    # Additional useful variables
+    log.sales = log(sales + 1),
+    age.cat = case_when(
+      age == 0 ~ "New",
+      age == 1 ~ "One_Year", 
+      age >= 2 ~ "Two_Plus"
+    )
+  )
+
+# Create final CS dataset with only needed variables
+data.cs.final = data.cs[, c("unit.id", "time", "cohort", "outcome", "sales", "log.sales", 
+                           "age", "age.cat", "LJ", "LJstate", "LJmodel", 
+                           "model_group_code", "state_code", "id")]
+
+# Ensure proper ordering
+data.cs.final = data.cs.final[order(data.cs.final$unit.id, data.cs.final$time), ]
+
+# Display summary
+cat("=== CS DATA PREPARATION COMPLETE ===\n")
+cat("Dataset dimensions:", nrow(data.cs.final), "rows ×", ncol(data.cs.final), "columns\n")
+cat("Units:", n_distinct(data.cs.final$unit.id), "\n")
+cat("Time periods:", paste(range(data.cs.final$time), collapse = " to "), "\n")
+
+# Cohort structure
+cat("\nCohort structure:\n")
+table(data.cs.final$cohort) %>% print()
+
+# Sample data
+cat("\nFirst few observations:\n")
+head(data.cs.final) %>% print()
+
+cat("\n=== READY FOR CALLAWAY & SANT'ANNA ===\n")
+cat("Variable names for att_gt():\n")
+cat("- idname: 'unit.id'\n")
+cat("- tname: 'time'\n")
+cat("- gname: 'cohort'\n") 
+cat("- yname: 'outcome'\n")
+cat("- data: data.cs.final\n")
+```
+
+
+```{r}
+# Load did package
+library(did)
+
+# Step 3: Estimate Group-Time Average Treatment Effects (ATT(g,t))
+# For multi-period data, we need to use the correct specification
+cs.results = att_gt(
+  yname = "outcome",
+  tname = "time",
+  idname = "unit.id", 
+  gname = "cohort",
+  data = data.cs.final,
+  control_group = "nevertreated",  # Use never-treated units as controls
+  anticipation = 0,                 # No anticipation effects
+  weightsname = NULL,               # No weights
+  alp = 0.05,                       # 95% confidence intervals
+  bstrap = TRUE,                    # Bootstrap inference
+  biters = 1000,                    # Number of bootstrap iterations
+  clustervars = "state_code",       # Cluster at state level
+  est_method = "dr",                # Use doubly-robust (default, works better for multi-period)
+  base_period = "universal",        # Use universal base period
+  print_details = TRUE,
+  allow_unbalanced_panel = TRUE     # Allow unbalanced panel
+)
+
+# Display results
+summary(cs.results)
+
+```
+
+
+```{r}
+# Step 4: Aggregate to Overall ATT
+# Simple weighted average of all group-time ATTs
+cs.simple = aggte(cs.results, type = "simple")
+summary(cs.simple)
+
+cat("\n=== OVERALL ATT COMPARISON ===\n")
+cat("TWFE estimate (from Table 2, Column 3):", round(coef(model.t2.c3)["LJ"], 3), "\n")
+cat("CS overall ATT:", round(cs.simple$overall.att, 3), "\n")
+cat("CS standard error:", round(cs.simple$overall.se, 3), "\n")
+
+# Calculate percentage change for CS
+irr.cs = exp(cs.simple$overall.att)
+pct.change.cs = (irr.cs - 1) * 100
+cat("CS percentage effect:", round(pct.change.cs, 1), "%\n")
+
+```
+
+Key Findings:
+
+TWFE vs. Callaway & Sant'Anna:
+
+    TWFE estimate: -0.663 (from your Table 2, Column 3)
+    CS overall ATT: -2.203 (significant at 95% level)
+    Difference: CS shows a much larger treatment effect
+
+CS Results:
+
+    Overall ATT: -2.203 (significant)
+    Percentage effect: -89% reduction in thefts
+    95% CI: [-4.267, -0.140]
+
+This suggests that the TWFE approach may have been underestimating the true treatment effect, which is a common issue when treatment effects are heterogeneous across groups and time periods. The CS method accounts for this heterogeneity properly.
+
+The CS estimate indicates the Lojack program reduced vehicle thefts by approximately 89% on average for treated units.
+
+
+```{r}
+# Step 5: Dynamic Effects (Event Study)
+# Aggregate to event-study specification
+cs.dynamic = aggte(cs.results, type = "dynamic")
+summary(cs.dynamic)
+
+```
+
+
+```{r}
+# Plot event study
+ggdid(cs.dynamic, 
+      title = "Event Study: Lojack Introduction",
+      xlab = "Years Relative to Treatment",
+      ylab = "ATT") +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red") +
+  theme_minimal()
+
+```
+
+
+```{r}
+# Step 6: Group-Specific Effects
+# Aggregate by treatment cohort
+cs.group = aggte(cs.results, type = "group")
+summary(cs.group)
+
+cat("\n=== COHORT-SPECIFIC EFFECTS ===\n")
+cat("Cohort 2001 (Lojack states) ATT:", round(cs.group$overall.att, 3), "\n")
+cat("Standard error:", round(cs.group$overall.se, 3), "\n")
+
+```
+
+
+```{r}
+# Step 7: Pre-Trends Test (Fixed)
+# Check if pre-treatment effects are jointly zero
+pretrend.test = cs.dynamic$att.egt[cs.dynamic$egt < 0]
+pretrend.se = cs.dynamic$se.egt[cs.dynamic$egt < 0]
+
+cat("=== PRE-TRENDS TEST ===\n")
+if (length(pretrend.test) > 0) {
+  cat("Pre-treatment periods:\n")
+  for (i in 1:length(pretrend.test)) {
+    if (!is.na(pretrend.se[i])) {
+      z.stat = pretrend.test[i] / pretrend.se[i]
+      p.val = 2 * (1 - pnorm(abs(z.stat)))
+      cat(sprintf("  Period %d: ATT = %.3f (SE = %.3f, p = %.3f)\n", 
+                  cs.dynamic$egt[cs.dynamic$egt < 0][i],
+                  pretrend.test[i], 
+                  pretrend.se[i], 
+                  p.val))
+    } else {
+      cat(sprintf("  Period %d: ATT = %.3f (SE = NA, reference period)\n", 
+                  cs.dynamic$egt[cs.dynamic$egt < 0][i],
+                  pretrend.test[i]))
+    }
+  }
+} else {
+  cat("No pre-treatment periods available\n")
+}
+
+# Overall pre-test p-value from original results
+if (!is.null(cs.results$ptests) && !is.na(cs.results$ptests$pval)) {
+  cat("\nOverall pre-test p-value:", round(cs.results$ptests$pval, 3), "\n")
+} else {
+  cat("\nOverall pre-test p-value: Not available\n")
+}
+
+```
+
+
+```{r}
+# Step 8: Comparison Table
+# Create comprehensive comparison table
+comparison.table = data.frame(
+  Method = c("TWFE (Original)", "Callaway & Sant'Anna"),
+  Coefficient = c(
+    sprintf("%.3f***", coef(model.t2.c3)["LJ"]),
+    sprintf("%.3f*", cs.simple$overall.att)
+  ),
+  SE = c(
+    sprintf("(%.3f)", sqrt(diag(vcov(model.t2.c3)))["LJ"]),
+    sprintf("(%.3f)", cs.simple$overall.se)
+  ),
+  Pct_Change = c(
+    sprintf("%.1f%%", (exp(coef(model.t2.c3)["LJ"]) - 1) * 100),
+    sprintf("%.1f%%", pct.change.cs)
+  ),
+  N_Obs = c(nrow(data), nrow(data.cs.final))
+)
+
+kable(comparison.table,
+      caption = "COMPARISON: TWFE vs. Callaway & Sant'Anna Estimators",
+      align = c("l", "c", "c", "c", "c"))
+
+```
+
+
+```{r}
+# Statistical test: Are they significantly different?
+diff = coef(model.t2.c3)["LJ"] - cs.simple$overall.att
+se.diff = sqrt(sqrt(diag(vcov(model.t2.c3)))["LJ"]^2 + cs.simple$overall.se^2)
+z.diff = diff / se.diff
+p.diff = 2 * (1 - pnorm(abs(z.diff)))
+
+cat("=== DIFFERENCE TEST ===\n")
+cat("Difference (TWFE - CS):", round(diff, 3), "\n")
+cat("SE of difference:", round(se.diff, 3), "\n")
+cat("Z-statistic:", round(z.diff, 2), "\n")
+cat("P-value:", round(p.diff, 3), "\n")
+cat("Conclusion:", ifelse(p.diff < 0.05, 
+                          "SIGNIFICANTLY DIFFERENT - TWFE appears biased", 
+                          "NOT significantly different"), "\n")
+
+```
+
+
+
+    Overall Effects:
+        TWFE: -48.5% reduction in thefts
+        CS: -89.0% reduction in thefts
+
+    Pre-trends: Satisfied (p = 0.286 for period -2)
+
+    Dynamic Effects: Treatment effects grow stronger over time (-0.45 → -3.78 → -6.29)
+
+    Statistical Comparison: The TWFE and CS estimates are not significantly different (p = 0.144), suggesting both methods are consistent in this application.
+
+The CS method shows a larger treatment effect, but the difference isn't statistically significant. Both methods confirm that the Lojack program significantly reduced vehicle thefts.
+
+
+
+
+
+
+
+
+# AGAIN:
+
+
+```{r}
+data.cs <- data %>%
+  arrange(id, yr_stolen) %>%
+  group_by(id) %>%
+  mutate(
+    # first year this id is treated as LJ==1
+    first_treat_year = ifelse(any(LJ == 1),
+                              min(yr_stolen[LJ == 1]),
+                              NA_real_),
+    # cohort: first treatment year, or 0 if never treated
+    cohort = ifelse(is.na(first_treat_year), 0, first_treat_year),
+    # time variable
+    time = yr_stolen,
+    # unit id for did package
+    unit.id = id
+  ) %>%
+  ungroup()
+
+data.cs %>%
+  group_by(cohort) %>%
+  summarise(
+    n_obs = n(),
+    n_units = n_distinct(unit.id),
+    .groups = "drop"
+  )
+```
+
+```{r}
+# Run Callaway & Sant'Anna estimator
+# Using "reg" method for continuous outcome (log thefts)
+cat("\n=== ESTIMATING CALLAWAY & SANT'ANNA ===\n")
+
+cs.results = att_gt(
+  yname = "outcome",
+  tname = "time",
+  idname = "unit.id",
+  gname = "cohort",
+  data = data.cs,
+  control_group = "nevertreated",  # Use never-treated as controls
+  anticipation = 0,                 # No anticipation
+  weightsname = NULL,               
+  alp = 0.05,                       # 95% CI
+  bstrap = TRUE,                    # Bootstrap inference
+  biters = 1000,                    # Bootstrap iterations
+  clustervars = "state_code",       # Cluster at state level
+  est_method = "reg",               # Regression-based
+  print_details = FALSE
+)
+
+# Display group-time results
+summary(cs.results)
+```
+
+
+```{r}
+# Simple weighted average ATT
+
+cs.simple = aggte(cs.results, type = "simple")
+
+cat("\n")
+cat(strrep("=", 60), "\n")  # Or paste(rep("=", 60), collapse = "")
+cat("=== OVERALL ATT COMPARISON ===\n")
+cat(strrep("=", 60), "\n\n")
+
+# TWFE estimate from your Table 2, Column 3
+twfe.coef = coef(model.t2.c3)["LJ"]
+twfe.se = sqrt(diag(vcov(model.t2.c3)))["LJ"]
+twfe.pct = (exp(twfe.coef) - 1) * 100
+
+# CS estimate
+cs.coef = cs.simple$overall.att
+cs.se = cs.simple$overall.se
+cs.pct = (exp(cs.coef) - 1) * 100
+
+cat("TWFE (Original Estimator):\n")
+cat("  Coefficient: ", sprintf("%.3f", twfe.coef), "\n")
+cat("  Std. Error:  ", sprintf("%.3f", twfe.se), "\n")
+cat("  % Effect:    ", sprintf("%.1f%%", twfe.pct), "\n\n")
+
+cat("Callaway & Sant'Anna:\n")
+cat("  Overall ATT: ", sprintf("%.3f", cs.coef), "\n")
+cat("  Std. Error:  ", sprintf("%.3f", cs.se), "\n")
+cat("  % Effect:    ", sprintf("%.1f%%", cs.pct), "\n\n")
+
+# Test for significant difference
+diff = twfe.coef - cs.coef
+se.diff = sqrt(twfe.se^2 + cs.se^2)
+z.stat = diff / se.diff
+p.val = 2 * (1 - pnorm(abs(z.stat)))
+
+cat("Difference Test:\n")
+cat("  TWFE - CS:   ", sprintf("%.3f", diff), "\n")
+cat("  SE:          ", sprintf("%.3f", se.diff), "\n")
+cat("  Z-statistic: ", sprintf("%.2f", z.stat), "\n")
+cat("  P-value:     ", sprintf("%.3f", p.val), "\n")
+cat("  Conclusion:  ", ifelse(p.val < 0.05, 
+                              "SIGNIFICANTLY DIFFERENT", 
+                              "Not significantly different"), "\n")
+cat(strrep("=", 60), "\n")  # Or: cat(paste(rep("=", 60), collapse = ""), "\n")
+
+```
+
+
+```{r}
+# Event study aggregation
+cs.dynamic = aggte(cs.results, type = "dynamic")
+
+cat("\n=== DYNAMIC TREATMENT EFFECTS ===\n")
+summary(cs.dynamic)
+
+# Create event study plot
+p.event = ggdid(cs.dynamic) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "red", size = 0.8) +
+  labs(
+    title = "Event Study: Lojack Introduction Effect on Auto Theft",
+    subtitle = "Callaway & Sant'Anna (2021) Estimator",
+    x = "Years Relative to Lojack Introduction",
+    y = "ATT (log thefts)",
+    caption = "Note: 95% pointwise confidence intervals. Red line at zero."
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    plot.subtitle = element_text(size = 11, color = "gray30"),
+    panel.grid.minor = element_blank()
+  )
+
+print(p.event)
+
+# Save plot
+ggsave(here("output", "event_study_callaway_santanna.png"), 
+       p.event, width = 10, height = 6, dpi = 300)
+
+cat("\nEvent study plot saved to: output/event_study_callaway_santanna.png\n")
+
+```
+
+
+
+```{r}
+# Aggregate by treatment cohort
+cs.group = aggte(cs.results, type = "group")
+
+cat("\n=== COHORT-SPECIFIC EFFECTS ===\n")
+summary(cs.group)
+
+# Extract and display cohort estimates
+cohort.results = data.frame(
+  Cohort = c("2001 (Jalisco)", "2002 (Morelos, Mexico, DF)"),
+  ATT = cs.group$att.egt,
+  SE = cs.group$se.egt,
+  Pct_Effect = (exp(cs.group$att.egt) - 1) * 100
+) %>%
+  mutate(
+    CI_Lower = ATT - 1.96 * SE,
+    CI_Upper = ATT + 1.96 * SE,
+    Significant = ifelse(abs(ATT / SE) > 1.96, "Yes", "No")
+  )
+
+kable(
+  cohort.results,
+  caption = "Cohort-Specific Treatment Effects",
+  digits = 3,
+  col.names = c("Cohort", "ATT", "SE", "% Effect", "CI Lower", "CI Upper", "Sig.")
+)
+
+cat("\nInterpretation:\n")
+cat("- Jalisco (2001): Early adopter effect\n")
+cat("- Other states (2002): One-year delayed adopter effect\n")
+cat("- Differences may reflect heterogeneity in treatment effects\n")
+
+```
+
+
+
+```{r}
+# Test parallel trends assumption
+cat("\n=== PRE-TRENDS TEST ===\n")
+
+# Extract pre-treatment ATTs
+pretrend.idx = which(cs.dynamic$egt < 0)
+
+if (length(pretrend.idx) > 0) {
+  pretrend.results = data.frame(
+    Period = cs.dynamic$egt[pretrend.idx],
+    ATT = cs.dynamic$att.egt[pretrend.idx],
+    SE = cs.dynamic$se.egt[pretrend.idx]
+  ) %>%
+    mutate(
+      Z_stat = ATT / SE,
+      P_value = 2 * (1 - pnorm(abs(Z_stat))),
+      Significant = ifelse(P_value < 0.05, "Yes", "No")
+    )
+  
+  cat("Pre-treatment effects (should be close to zero):\n\n")
+  print(pretrend.results, row.names = FALSE)
+  
+  # Joint test
+  n.pretrends = nrow(pretrend.results)
+  sig.pretrends = sum(pretrend.results$Significant == "Yes")
+  
+  cat("\n")
+  cat("Number of pre-treatment periods:", n.pretrends, "\n")
+  cat("Significant pre-trends:", sig.pretrends, "\n")
+  cat("Parallel trends assumption:", 
+      ifelse(sig.pretrends == 0, "SATISFIED ✓", "VIOLATED ✗"), "\n")
+} else {
+  cat("No pre-treatment periods available in event study.\n")
+  cat("Treatment begins at first observed period.\n")
+}
+
+```
+
+
+```{r}
+# Define the %R% operator for string repetition (base R)
+`%R%` = function(x, n) paste(rep(x, n), collapse = "")
+
+# Build comparison table
+comparison.table = data.frame(
+  Method = c("TWFE (Original)", "Callaway & Sant'Anna"),
+  Specification = c("Negative binomial, model×state×vintage", 
+                    "OLS, model×state panel"),
+  Coefficient = c(
+    sprintf("%.3f***", twfe.coef),
+    sprintf("%.3f%s", cs.coef,
+            ifelse(abs(cs.coef / cs.se) > 2.576, "***",
+            ifelse(abs(cs.coef / cs.se) > 1.96, "**", "*")))
+  ),
+  SE = c(sprintf("(%.3f)", twfe.se), sprintf("(%.3f)", cs.se)),
+  Pct_Change = c(sprintf("%.1f%%", twfe.pct), sprintf("%.1f%%", cs.pct)),
+  N_Obs = c(nrow(data), nrow(data.cs)),
+  N_Units = c(length(unique(data$id)), length(unique(data.cs$unit.id)))
+)
+
+kable(
+  comparison.table,
+  caption = "TABLE 4: COMPARISON OF TWFE AND CALLAWAY & SANT'ANNA ESTIMATORS",
+  align = c("l", "l", "c", "c", "c", "c", "c")
+)
+
+cat("\n")
+cat("=" %R% 60, "\n")
+cat("KEY TAKEAWAYS:\n")
+cat("=" %R% 60, "\n")
+
+if (abs(diff) < 0.05) {
+  cat("✓ TWFE and CS estimates are very similar\n")
+  cat("✓ Suggests minimal bias from treatment effect heterogeneity\n")
+  cat("✓ Original TWFE estimates appear robust\n")
+} else if (cs.coef < twfe.coef) {
+  cat("⚠ CS estimate is MORE NEGATIVE than TWFE\n")
+  cat("⚠ TWFE may underestimate deterrence effect\n")
+  cat("⚠ Forbidden comparisons creating negative weights\n")
+} else {
+  cat("⚠ CS estimate is LESS NEGATIVE than TWFE\n")
+  cat("⚠ TWFE may overestimate deterrence effect\n")
+  cat("⚠ Treatment effect heterogeneity biasing TWFE upward\n")
+}
+```
+
+
+
+```{r}
+# Create coefficient comparison plot
+coef.comparison = data.frame(
+  Method = c("TWFE", "CS"),
+  Estimate = c(twfe.coef, cs.coef),
+  SE = c(twfe.se, cs.se)
+) %>%
+  mutate(
+    CI_Lower = Estimate - 1.96 * SE,
+    CI_Upper = Estimate + 1.96 * SE
+  )
+
+p.comparison = ggplot(coef.comparison, aes(x = Method, y = Estimate)) +
+  geom_hline(yintercept = 0, linetype = "dashed", color = "gray50") +
+  geom_point(size = 4, color = "steelblue") +
+  geom_errorbar(aes(ymin = CI_Lower, ymax = CI_Upper), 
+                width = 0.2, size = 1, color = "steelblue") +
+  labs(
+    title = "Comparison: TWFE vs. Callaway & Sant'Anna",
+    subtitle = "Effect of Lojack on Auto Theft (log scale)",
+    x = "",
+    y = "Coefficient Estimate",
+    caption = "Note: 95% confidence intervals shown"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", size = 14),
+    panel.grid.major.x = element_blank()
+  )
+
+print(p.comparison)
+
+ggsave(here("output", "twfe_vs_cs_comparison.png"), 
+       p.comparison, width = 8, height = 6, dpi = 300)
+
 ```
