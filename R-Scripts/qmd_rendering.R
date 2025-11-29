@@ -8,12 +8,12 @@
 
 # Rendering
 
-render = function(proj.name, qmd.name) {
+render = function(base.path, proj.name, qmd.name) {
   # Construct file paths
-  qmd.path = file.path("K:/Projects", proj.name, "Quarto-Files", paste0(qmd.name, ".qmd"))
-  output.dir = file.path("K:/Projects", proj.name, "Quarto-Files/Rendered", qmd.name)
-  files.dir = file.path("K:/Projects", proj.name, "Quarto-Files", paste0(qmd.name, "_files"))
-  gitignore.path = file.path("K:/Projects", proj.name, "Quarto-Files", ".gitignore")
+  qmd.path = file.path(base.path, proj.name, "Quarto-Files", paste0(qmd.name, ".qmd"))
+  output.dir = file.path(base.path, proj.name, "Quarto-Files/Rendered", qmd.name)
+  files.dir = file.path(base.path, proj.name, "Quarto-Files", paste0(qmd.name, "_files"))
+  gitignore.path = file.path(base.path, proj.name, "Quarto-Files", ".gitignore")
   
   # Render command
   render.cmd = paste0("quarto render ", qmd.path, " --output-dir ", output.dir)
@@ -28,5 +28,5 @@ render = function(proj.name, qmd.name) {
 
 
 # Replication-MZ.qmd
-render('Paper-Replication', 'Replication-MZ')
+render("K:/PhD/Courses/Advanced_Topics_in_Microeconometrics", 'Paper-Replication', 'Replication-MZ')
 
