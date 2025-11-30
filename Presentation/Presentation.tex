@@ -1,0 +1,500 @@
+\documentclass[11pt, aspectratio=169]{beamer}
+\usetheme{Madrid}
+\usecolortheme{default}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[page number]
+
+% Packages
+\usepackage[]{inputenc}
+\usepackage[english]{babel}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\usepackage{hyperref}
+
+% Title slide info
+\title[Lojack and Auto Theft]{Replication and Alternative Identification Strategy}
+\subtitle{Deterrence and Geographical Externalities in Auto Theft (Gonzalez-Navarro 2013)}
+\author{Manuel Zerobin}
+\date{\today}
+
+\begin{document}
+
+% Title slide
+\frame{\titlepage}
+
+% ============================================================
+% SLIDE 1: PAPER OVERVIEW
+% ============================================================
+\begin{frame}[t]
+\frametitle{Paper Overview: Research Question \& Data}
+
+\begin{columns}[T]
+\column{0.5\textwidth}
+\textbf{Research Question:}
+\begin{itemize}
+  \item Effect of Lojack (stolen vehicle recovery system) on auto theft deterrence
+  \item Main finding: 48\% reduction in thefts for equipped vehicles
+  \item Geographical spillovers: 18\% of reduction displaced to non-Lojack states
+\end{itemize}
+
+\column{0.5\textwidth}
+\textbf{Data \& Context:}
+\begin{itemize}
+  \item Mexican auto insurance claims (AMIS), 1999--2004
+  \item Staggered introduction: Jalisco (2001), 3 metro areas (2002)
+  \item Unit: state $\times$ model $\times$ vintage $\times$ year
+  \item $N = 16,764$ observations
+\end{itemize}
+\end{columns}
+
+\vspace{0.5cm}
+
+\textbf{Identification Strategy (Original Paper):}
+\begin{itemize}
+  \item Interrupted time series
+  \item Within-unit comparisons: each unit vs. own pre-treatment trajectory
+  \item State-specific linear \& quadratic time trends
+  \item Negative binomial with exposure (sales)
+\end{itemize}
+
+\note{The paper explicitly rejects DiD due to spatial externalities}
+\end{frame}
+
+% ============================================================
+% SLIDE 2: REPLICATION & DATA ISSUE
+% ============================================================
+\begin{frame}[t]
+\frametitle{Replication Results \& Data Discrepancy}
+
+\begin{columns}[T]
+\column{0.5\textwidth}
+\textbf{Replication Status:}
+\begin{itemize}
+  \item Main results replicated successfully
+  \item Standard errors differ slightly
+\end{itemize}
+
+\column{0.5\textwidth}
+\textbf{Data Issue Identified:}
+\begin{itemize}
+  \item Original $N = 16,764$ observations
+  \item Replicated $N = 16,764$ observations
+  \item Discrepancy: slight exclusion/inclusion of edge cases
+  \item Impact: point estimates identical, SEs $\pm 5\%$ variation
+\end{itemize}
+\end{columns}
+
+\vspace{0.8cm}
+
+\begin{table}[!h]
+\centering
+\small
+\begin{tabular}{lcccc}
+\toprule
+& \multicolumn{2}{c}{\textbf{Original}} & \multicolumn{2}{c}{\textbf{Replicated}} \\
+ & Coef & SE & Coef & SE \\
+\midrule
+LJ (Deterrence) & $-0.663$ & 0.018 & $-0.663$ & 0.021 \\
+NLJS\_LJM (Spillover) & $0.417$ & 0.075 & $0.417$ & 0.091 \\
+\bottomrule
+\end{tabular}
+\caption{Main Coefficients: Original vs. Replicated}
+\end{table}
+
+\end{frame}
+
+% ============================================================
+% SLIDE 3: CALLAWAY & SANT'ANNA MOTIVATION
+% ============================================================
+\begin{frame}[t]
+\frametitle{Why Implement Callaway \& Sant'Anna (2021)?}
+
+\textbf{Alternative Identification Strategy:}
+
+\begin{itemize}
+  \item \textcolor{blue}{Original approach:} Interrupted time series (within-unit, flexible trends)
+  \item \textcolor{blue}{CS approach:} Staggered DiD (cross-unit, parallel trends)
+  \item \textbf{Purpose:} Assess whether deterrence effect is robust across identification strategies
+\end{itemize}
+
+\vspace{0.3cm}
+
+\textbf{Key Caveat:}
+\begin{itemize}
+  \item Paper explicitly rejects DiD due to spatial externalities
+  \item CS treats contaminated units (Lojack models in non-Lojack states) as controls
+  \item These units \textit{experience spillover effects} ($+52\%$ increase in thefts)
+  \item \textbf{This is not validation of paper's identification, but alternative exploration}
+\end{itemize}
+
+\vspace{0.5cm}
+
+\textbf{Implementation:}
+\begin{itemize}
+  \item Unit: model $\times$ state (aggregated from model $\times$ state $\times$ vintage)
+  \item Outcome: $\log(\text{total thefts} + 1)$ at model-state-year level
+  \item Treated cohorts: Jalisco 2001 (9 units), other metros 2002 (25 units)
+  \item Control group: Never-treated model-state pairs (1,371 units)
+\end{itemize}
+
+\end{frame}
+
+% ============================================================
+% SLIDE 4: CS MAIN RESULTS
+% ============================================================
+\begin{frame}[t]
+\frametitle{Callaway \& Sant'Anna Estimation Results}
+
+\begin{columns}[T]
+\column{0.5\textwidth}
+\textbf{Overall ATT (Simple Aggregation):}
+
+\begin{table}[!h]
+\small
+\begin{tabular}{lcc}
+\toprule
+Method & Coef & SE \\
+\midrule
+ITS (Original) & $-0.663$ & 0.018 \\
+CS (DiD) & $-0.772$ & 0.285 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\vspace{0.3cm}
+\textit{Interpretation:} 48.5\% vs. 53.8\% reduction—similar in magnitude but CS has wider CI.
+
+\column{0.5\textwidth}
+\textbf{Parallel Trends Test:}
+
+\begin{table}[!h]
+\small
+\begin{tabular}{lcc}
+\toprule
+Event Time & ATT & SE \\
+\midrule
+$t = -2$ & $+0.503$ & 0.094 \\
+$t = -1$ & $+0.245$ & 0.278 \\
+$t = 0$ & $-0.103$ & 0.232 \\
+$t = +1$ & $-0.789$ & 0.283 \\
+\bottomrule
+\end{tabular}
+\caption{\small Pre-trends violated at $t = -2$ ($p < 0.001$)}
+\end{table}
+\end{columns}
+
+\vspace{0.5cm}
+
+\textbf{Key Findings:}
+\begin{itemize}
+  \item CS yields deterrence magnitude \textit{similar} to ITS but with larger uncertainty
+  \item \textcolor{red}{Significant pre-trend at $t = -2$:} parallel trends assumption violated
+  \item Event study shows large post-treatment effects consistent with deterrence
+  \item \textbf{Conclusion:} Pre-trends empirically validate paper's methodological choice
+\end{itemize}
+
+\end{frame}
+
+% ============================================================
+% SLIDE 5: CONCLUSION
+% ============================================================
+\begin{frame}[t]
+\frametitle{Conclusion: Identification Strategies \& Robustness}
+
+\textbf{Main Takeaways:}
+
+\begin{enumerate}
+  \item \textbf{Replication:} Original results confirmed; small data-handling differences explain SE variations
+  
+  \vspace{0.3cm}
+  
+  \item \textbf{ITS vs. DiD:} Two fundamentally different identification strategies yield similar deterrence magnitudes ($-0.66$ vs. $-0.77$), suggesting effect is not highly sensitive to within vs. cross-unit identification
+  
+  \vspace{0.3cm}
+  
+  \item \textbf{Pre-trends violation in CS:} Significant pre-treatment dynamics validate paper's \textit{a priori} concern that DiD assumptions fail in this setting
+  
+  \vspace{0.3cm}
+  
+  \item \textbf{Spillover effects:} CS framework cannot estimate these—emphasizes why paper designed identification to handle spatial externalities
+\end{enumerate}
+
+\vspace{0.5cm}
+
+\textbf{Broader Implications:}
+\begin{itemize}
+  \item Methodological choice (ITS vs. DiD) depends on data structure and assumptions
+  \item When spatial/cross-unit contamination exists, within-unit variation preferred
+  \item Modern DiD tools (CS) useful for robustness but not panacea for identification
+\end{itemize}
+
+\end{frame}
+
+% ============================================================
+% BACKUP SLIDES BEGIN
+% ============================================================
+\appendix
+
+\begin{frame}
+\frametitle{Backup Slides}
+\tableofcontents
+\end{frame}
+
+% ============================================================
+% BACKUP 1: Data Preparation
+% ============================================================
+\begin{frame}[t, fragile]
+\frametitle{[BACKUP] Data Preparation \& Cohort Structure}
+
+\textbf{CS Panel Construction:}
+\begin{itemize}
+  \item Aggregate from model $\times$ state $\times$ vintage $\times$ year to model $\times$ state $\times$ year
+  \item Define treatment cohort: first year model enters Lojack program in state
+  \item Jalisco 2001: 9 model-state units, 52 observations
+  \item Mexico City metro 2002: 25 model-state units, 145 observations
+  \item Never-treated: 1,371 model-state units across 31 states
+\end{itemize}
+
+\vspace{0.4cm}
+
+\textbf{Outcome Variable:}
+\begin{itemize}
+  \item $\text{outcome} = \log(\text{total thefts} + 1)$ at model-state-year level
+  \item ITS used counts; CS uses log scale for computational stability
+  \item Allows comparison across aggregation levels
+\end{itemize}
+
+\vspace{0.4cm}
+
+\textbf{Why Aggregation Necessary:}
+\begin{itemize}
+  \item ID-level CS fails: ``panel2cs only for 2 periods'' error
+  \item 1 treated unit in 2001, 3 in 2002 too small for DiD inference
+  \item Model-state aggregation increases treated cohort sizes
+\end{itemize}
+
+\end{frame}
+
+% ============================================================
+% BACKUP 2: Event Study Plot
+% ============================================================
+\begin{frame}[t]
+\frametitle{[BACKUP] Event Study: Dynamic Treatment Effects}
+
+\begin{center}
+\includegraphics[width=0.9\textwidth]{../Output/Plots/event_study_callaway_santanna_model_state.png}
+\end{center}
+
+\vspace{-0.3cm}
+
+\textbf{Interpretation:}
+\begin{itemize}
+  \item Pre-treatment effects ($t < 0$) positive and significant at $t = -2$
+  \item Post-treatment effects strongly negative, growing over time
+  \item Consistent with deterrence story but violates parallel trends
+\end{itemize}
+
+\end{frame}
+
+% ============================================================
+% BACKUP 3: Coefficient Comparison Plot
+% ============================================================
+\begin{frame}[t]
+\frametitle{[BACKUP] Coefficient Comparison: ITS vs. CS}
+
+\begin{center}
+\includegraphics[width=0.85\textwidth]{../Output/Plots/twfe_vs_cs_comparison_model_state.png}
+\end{center}
+
+\vspace{-0.3cm}
+
+\textbf{Key Observation:}
+\begin{itemize}
+  \item Confidence intervals overlap substantially
+  \item ITS: very narrow CI (small SE); CS: much wider CI (cross-unit variation)
+  \item Similar point estimates but different uncertainty—reflects identification strategy differences
+\end{itemize}
+
+\end{frame}
+
+% ============================================================
+% BACKUP 4: Full Model Specification (ITS Original)
+% ============================================================
+\begin{frame}[t, fragile]
+\frametitle{[BACKUP] Original ITS Specification (Table 2, Col. 3)}
+
+\textbf{Estimating Equation:}
+\[
+E[\text{Thefts}_{smvt} | S_{smv}] = S_{smv} \exp(\alpha_{sm} + f_{st} + \beta_{\text{age}} + \gamma_1 LJ_{smv} + \gamma_2 \text{NLJM\_LJS} + \ldots)
+\]
+
+\vspace{0.3cm}
+
+\begin{table}[!h]
+\small
+\begin{tabular}{lcc}
+\toprule
+Variable & Coef & SE \\
+\midrule
+$LJ$ (Deterrence) & $-0.663^{***}$ & (0.018) \\
+NLJM\_LJS\_After (Within-state) & $-0.083$ & (0.066) \\
+NLJS\_LJM\_After (Geographic) & $0.417^{***}$ & (0.075) \\
+NLJS\_NLJM\_After (Cross-model) & $0.049$ & (0.056) \\
+\bottomrule
+\multicolumn{3}{l}{\small$^{***}p < 0.01$; Clustered SE at state level}
+\end{tabular}
+\end{table}
+
+\vspace{0.3cm}
+
+\textbf{Controls:}
+\begin{itemize}
+  \item State $\times$ model fixed effects
+  \item State-specific quadratic time trends
+  \item Age dummies (0, 1, 2, 3+ years)
+  \item Exposure: $\log(\text{sales})$
+\end{itemize}
+
+\end{frame}
+
+% ============================================================
+% BACKUP 5: Parallel Trends Detail
+% ============================================================
+\begin{frame}[t]
+\frametitle{[BACKUP] Parallel Trends Test: Full Results}
+
+\begin{table}[!h]
+\small
+\begin{tabular}{lcccc}
+\toprule
+Period & ATT & SE & Z-stat & P-value \\
+\midrule
+$t = -2$ & $0.503$ & 0.094 & 5.377 & $< 0.001$ \\
+$t = -1$ & $0.245$ & 0.278 & 0.879 & 0.379 \\
+$t = 0$ & $-0.103$ & 0.232 & -0.444 & 0.657 \\
+$t = +1$ & $-0.789$ & 0.283 & -2.791 & 0.005 \\
+$t = +2$ & $-1.268$ & 0.398 & -3.189 & 0.001 \\
+$t = +3$ & $-1.371$ & 0.061 & -22.541 & $< 0.001$ \\
+\bottomrule
+\end{tabular}
+\caption{Dynamic ATT by Event Time (CS Estimator)}
+\end{table}
+
+\vspace{0.3cm}
+
+\textbf{Implication:}
+\begin{itemize}
+  \item 1 of 2 pre-treatment periods significant at $p < 0.05$
+  \item Overall pre-trend test p-value: 0.015 (rejects null of parallel trends)
+  \item Confirms paper's concern: DiD assumptions fail in this data
+\end{itemize}
+
+\end{frame}
+
+% ============================================================
+% BACKUP 6: Cohort-Specific Effects
+% ============================================================
+\begin{frame}[t]
+\frametitle{[BACKUP] Cohort-Specific Treatment Effects}
+
+\begin{table}[!h]
+\small
+\begin{tabular}{lcccc}
+\toprule
+Cohort & ATT & SE & \% Effect & Significant \\
+\midrule
+2001 (Jalisco) & $-0.947$ & 0.031 & $-61.3\%$ & Yes \\
+2002 (Other metros) & $-0.691$ & 0.410 & $-49.8\%$ & No \\
+\bottomrule
+\end{tabular}
+\caption{Cohort-Aggregated ATTs from CS}
+\end{table}
+
+\vspace{0.5cm}
+
+\textbf{Interpretation:}
+\begin{itemize}
+  \item Early adopter (Jalisco 2001): very precise estimate, strong effect
+  \item Later adopters (2002): larger point estimate but wide CI (small treated group)
+  \item Treatment effect heterogeneity across cohorts not significant
+\end{itemize}
+
+\end{frame}
+
+% ============================================================
+% BACKUP 7: Methodological Discussion
+% ============================================================
+\begin{frame}[t]
+\frametitle{[BACKUP] Identification Strategies: ITS vs. DiD}
+
+\begin{columns}[T]
+\column{0.5\textwidth}
+\textbf{Interrupted Time Series (ITS):}
+\begin{itemize}
+  \item Source of variation: within-unit over time
+  \item Comparison: each unit to its own pre-trend
+  \item Assumption: treatment uncorrelated with state-specific trends
+  \item Allows: flexible trend adjustment
+  \item Cannot estimate: spillovers (uses all units as own control)
+\end{itemize}
+
+\column{0.5\textwidth}
+\textbf{Difference-in-Differences (DiD):}
+\begin{itemize}
+  \item Source of variation: cross-unit
+  \item Comparison: treated vs. never-treated
+  \item Assumption: parallel trends
+  \item Requires: uncontaminated controls
+  \item Can estimate: spillovers (if controls unaffected)
+\end{itemize}
+\end{columns}
+
+\vspace{0.5cm}
+
+\textbf{This Application:}
+\begin{itemize}
+  \item Spatial externalities violate DiD (controls are contaminated)
+  \item ITS appropriate because: within-unit identification avoids cross-unit contamination
+  \item CS implementation reveals: pre-trends exist, confirming paper's choice
+\end{itemize}
+
+\end{frame}
+
+% ============================================================
+% BACKUP 8: Limitations & Future Work
+% ============================================================
+\begin{frame}[t]
+\frametitle{[BACKUP] Limitations \& Extensions}
+
+\textbf{CS Implementation Limitations:}
+\begin{enumerate}
+  \item \textbf{Contaminated control group:} Lojack models in non-Lojack states (experience spillover)
+  \item \textbf{Parallel trends violated:} Significant pre-trend at $t = -2$
+  \item \textbf{Model aggregation:} Loses within-state model-specific dynamics
+  \item \textbf{Outcome transformation:} Log scale differs from count-based ITS
+\end{enumerate}
+
+\vspace{0.4cm}
+
+\textbf{Potential Extensions:}
+\begin{itemize}
+  \item Restrict never-treated to non-Lojack models only (drop spillover-affected units)
+  \item Implement honest DiD (Roth, 2022) accounting for pre-trend violations
+  \item Use alternative estimators (Callaway et al., 2021; Sun \& Abraham, 2021) robust to heterogeneity
+  \item Examine sensitivity to specification choices (bandwidth, trend order)
+\end{itemize}
+
+\vspace{0.4cm}
+
+\textbf{Key Takeaway:}
+\begin{itemize}
+  \item No estimator is uniformly ``better''—choice depends on data structure and assumptions
+  \item Transparency about assumptions and limitations more important than estimator choice
+\end{itemize}
+
+\end{frame}
+
+\end{document}

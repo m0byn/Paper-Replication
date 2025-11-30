@@ -1,0 +1,34 @@
+\frametitle{[BACKUP] Original ITS Specification (Table 2, Col. 3)}
+
+\textbf{Estimating Equation:}
+\[
+E[\text{Thefts}_{smvt} | S_{smv}] = S_{smv} \exp(\alpha_{sm} + f_{st} + \beta_{\text{age}} + \gamma_1 LJ_{smv} + \gamma_2 \text{NLJM\_LJS} + \ldots)
+\]
+
+\vspace{0.3cm}
+
+\begin{table}[!h]
+\small
+\begin{tabular}{lcc}
+\toprule
+Variable & Coef & SE \\
+\midrule
+$LJ$ (Deterrence) & $-0.663^{***}$ & (0.018) \\
+NLJM\_LJS\_After (Within-state) & $-0.083$ & (0.066) \\
+NLJS\_LJM\_After (Geographic) & $0.417^{***}$ & (0.075) \\
+NLJS\_NLJM\_After (Cross-model) & $0.049$ & (0.056) \\
+\bottomrule
+\multicolumn{3}{l}{\small$^{***}p < 0.01$; Clustered SE at state level}
+\end{tabular}
+\end{table}
+
+\vspace{0.3cm}
+
+\textbf{Controls:}
+\begin{itemize}
+  \item State $\times$ model fixed effects
+  \item State-specific quadratic time trends
+  \item Age dummies (0, 1, 2, 3+ years)
+  \item Exposure: $\log(\text{sales})$
+\end{itemize}
+
