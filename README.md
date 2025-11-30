@@ -10,9 +10,9 @@ All relevant files related to the replication of Gonzalez-Navarro, Marco. 2013. 
 - [Output](Output): includes all output, i.e. [plots](Output/Plots), [tables](Output/Tables), specifically saved to the respective folders.
 - [Supplementary-Files](Supplementary-Files): includes all relevant documentation and other files.
 	
-# Files relevant to programming
+# Relevant files
 
-All relevant work is done using quarto.
-
+All relevant work is done using quarto or LaTeX
 
 - [Replication-MZ](Quarto-Files/Rendered/Replication-MZ/Replication-MZ.md): the script does all data preparation before one can run the analysis.
+- [Presentation-MZ](Presentation/Presentation.pdf): the script does all data preparation before one can run the analysis.
