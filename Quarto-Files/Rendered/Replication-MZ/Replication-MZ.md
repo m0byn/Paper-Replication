@@ -1198,6 +1198,23 @@ Significant at the 10 percent level.
 
 # CS estimation:
 
+The original paper uses an interrupted time series (ITS) approach and
+explicitly rejects difference-in-differences (DiD) due to spatial
+externalities that contaminate potential control groups. Despite this
+fundamental incompatibility, I implement the Callaway & Sant’Anna (2021)
+DiD estimator as an alternative identification strategy to assess
+whether a modern staggered DiD approach yields qualitatively similar
+deterrence magnitudes. This is not a validation of the paper’s
+identification strategy, but rather an exploration of whether the
+deterrence effect is robust to a fundamentally different set of
+assumptions: specifically, replacing within-unit comparisons with
+flexible state-specific trends (ITS) with cross-unit comparisons under
+parallel trends (DiD). Importantly, the CS estimator cannot evaluate the
+paper’s spillover findings, as it codes units experiencing spillover
+effects (Lojack models in non-Lojack states) as “never-treated”
+controls, whereas the paper finds these units experience a 52% increase
+in thefts.
+
 I implement two specifications of the CS estimator:
 
 1.  closest possiblbe to original specification (not working properly)
@@ -1352,7 +1369,10 @@ nbreg:
 
 For practical purposes, we proceed to a “next closest” specification
 that aggregates units to increase treated group sizes and allows the
-estimator to run.
+estimator to run. This implementation failure is not merely a
+computational issue—it reflects the paper’s core concern that the data
+structure (with spatial externalities and small treated cohorts) is
+ill-suited for standard DiD methods that rely on cross-unit comparisons.
 
 ## Next closest specificaiont
 
@@ -1364,7 +1384,15 @@ then define a panel where the unit is a model–state pair, time is the
 theft year, and the treatment cohort is determined by when a Lojack
 model first appears in a Lojack state: Jalisco in 2001, and Morelos,
 Mexico State, and the Federal District in 2002. All other model–state
-units are coded as never treated.
+units are coded as never treated. This “never-treated” group includes
+both (1) non-Lojack models in all states and (2) Lojack models in
+non-Lojack states. Critically, group (2) is contaminated by spillover
+effects: the paper’s Table 2, column 3 shows these units experience a
+52% increase in thefts (NLJS_LJM_After = +0.42\*\*\*). Using
+contaminated units as controls violates the standard DiD assumption that
+control units are unaffected by treatment, meaning the CS estimate
+captures a combination of the direct deterrence effect and differential
+dynamics between treated and contaminated control units.
 
 <details class="code-fold">
 <summary>Code</summary>
@@ -1451,10 +1479,10 @@ observations; the never‑treated group remains large with 1,371 units
 across 31 states. This is still very close to the original
 design—treatment remains defined at the Lojack model in Lojack
 states—but the larger treated cohorts make the Callaway–Sant’Anna
-estimator numerically stable and allow for meaningful group‑time and
+estimator numerically more stable and allow for group‑time and
 aggregated treatment effect estimates. In the next step, I apply the CS
 estimator to this model–state panel and compare the resulting ATT to the
-original TWFE estimates.
+original estimates.
 
 <details class="code-fold">
 <summary>Code</summary>
@@ -1520,15 +1548,18 @@ summary(cs.ms.results)
 
 The group–time results show that, for the 2001 cohort, treatment effects
 become strongly negative after Lojack introduction, with especially
-large deterrence effects in later years (e.g. 2003–2004). For the 2002
-cohort, point estimates are also negative in post-treatment years but
-are less precisely estimated, with wide confidence bands. Importantly,
-several pre-treatment ATT(g,t) are clearly positive and statistically
-different from zero, and the built-in pre-test rejects the null of
-parallel trends (p ≈ 0.015). This suggests that, at the model–state
-level, treated units were already evolving differently from
-never-treated units before Lojack was introduced, which weakens the
-credibility of the strict parallel trends assumption.
+large effects in later years (e.g., 2003–2004). For the 2002 cohort,
+point estimates are also negative in post-treatment years but are less
+precisely estimated, with wide confidence bands. Importantly, several
+pre-treatment ATT(g,t) are clearly positive and statistically different
+from zero, and the built-in pre-test rejects the null of parallel trends
+(p ≈ 0.015). This suggests that treated units were already on different
+trajectories than the “never-treated” comparison group before Lojack was
+introduced. This pre-trend violation empirically validates the paper’s
+methodological concern: using cross-unit (especially cross-model)
+comparisons is inappropriate in this setting, which is precisely why the
+paper adopted an interrupted time series approach with unit-specific
+trends instead of DiD.
 
 <details class="code-fold">
 <summary>Code</summary>
@@ -1558,24 +1589,29 @@ cbind(
     LJ "TWFE"             "-0.66" "0.02" "-48.47"  
        "CS (model×state)" "-0.77" "0.28" "-53.79"  
 
-Next, I aggregate the group–time ATTs to a single “simple” overall ATT
-and compare it to the original TWFE coefficient on Lojack. The TWFE
-specification from Table 2, column 3 yields a coefficient of about
-−0.66, implying roughly a 48.5 percent reduction in thefts. The CS
-estimator delivers an overall ATT of about −0.77, corresponding to a
-53.8 percent reduction. The point estimates are very similar in
-magnitude, and given the relatively large standard error on the CS
-estimate (≈ 0.29), the difference between −0.66 and −0.77 is not
+Next, I aggregate the group–time ATTs to a single overall ATT and
+compare it to the original ITS coefficient. The ITS specification from
+Table 2, column 3 yields a coefficient of about −0.66 (SE = 0.018),
+implying roughly a 48.5% reduction in thefts. The CS estimator delivers
+an overall ATT of about −0.77 (SE = 0.29), corresponding to a 53.8%
+reduction. The point estimates are similar in magnitude, and given the
+large standard error on the CS estimate, the difference is not
 statistically significant.
 
-Taken together, these results indicate that, for this application, the
-TWFE estimator and the CS estimator agree closely on the average
-deterrence effect of Lojack, suggesting that the classic TWFE weighting
-issues do not generate large bias in the main coefficient. However, the
-CS event-time estimates and the formal pre-trend test highlight non-flat
-pre-treatment dynamics, which cautions against interpreting the
-estimated ATT as arising from perfectly parallel trends between treated
-and never-treated units.
+However, this similarity should not be interpreted as validation of
+either approach. The two estimators rely on fundamentally different
+identification assumptions and use different sources of variation. ITS
+uses within-unit variation over time (comparing each unit to its own
+pre-treatment trajectory, flexibly adjusted for state-specific quadratic
+trends), while CS uses cross-unit variation (comparing treated Lojack
+models to never-treated units, which include both non-Lojack models and
+Lojack models in non-Lojack states experiencing spillover effects). The
+CS estimate may be close to the ITS estimate by coincidence, or because
+the contamination from spillovers and differential model-specific trends
+happens to roughly cancel out. The key finding is that CS reveals
+significant pre-trends, confirming that the parallel trends assumption
+required for DiD does not hold, which supports the paper’s decision to
+use ITS instead.
 
 <details class="code-fold">
 <summary>Code</summary>
@@ -1664,16 +1700,24 @@ overall average ATT across post‑treatment event times is about −0.88
 with a standard error of 0.23, implying a sizeable and statistically
 significant reduction in log thefts following treatment.
 
-The event‑time pattern is, however, not fully consistent with strict
-parallel trends. At event time −2 (two years before Lojack
-introduction), the estimated ATT is about +0.50 and clearly positive and
-significant, indicating that treated model–state units were already
-experiencing higher growth in thefts relative to never‑treated units
-prior to treatment. At event time −1, the pre‑treatment estimate is
-positive but imprecise and includes zero. From event time 0 onward, the
-effects turn negative and become increasingly large in absolute value:
-around −0.79 one year after treatment, about −1.27 two years after, and
-−1.37 three years after introduction, all precisely estimated.
+The event‑time pattern is, however, not consistent with strict parallel
+trends. At event time −2 (two years before Lojack introduction), the
+estimated ATT is about +0.50 and clearly positive and significant,
+indicating that treated model–state units were already experiencing
+higher growth in thefts relative to never‑treated units prior to
+treatment. At event time −1, the pre‑treatment estimate is positive but
+imprecise and includes zero. From event time 0 onward, the effects turn
+negative and become increasingly large in absolute value: around −0.79
+one year after treatment, about −1.27 two years after, and −1.37 three
+years after introduction. Substantively, this pattern is consistent with
+a strong and growing deterrence effect of Lojack over time, but the
+positive pre-trend at event −2 empirically demonstrates why the paper
+rejected DiD. The pre-trend could reflect: (1) differential trends
+between Lojack and non-Lojack model types, (2) anticipation effects, or
+(3) pre-existing differences in theft dynamics between states that later
+adopted Lojack and those that did not. Regardless of the source, it
+violates the parallel trends assumption and suggests that cross-unit
+comparisons do not provide a valid counterfactual in this setting.
 
 <details class="code-fold">
 <summary>Code</summary>
@@ -1767,28 +1811,35 @@ thefts)</td>
 TABLE 4: COMPARISON OF TWFE AND CALLAWAY & SANT’ANNA ESTIMATORS
 (model×state level)
 
-The comparison table summarizes the original TWFE estimate and the
-Callaway–Sant’Anna (CS) estimate from the model–state specification. The
-TWFE regression (negative binomial at the model–state–vintage level)
-yields a coefficient of about −0.663 with a very small standard error
-(0.018), implying an average theft reduction of roughly 48.5 percent for
-Lojack‑equipped vehicles. The CS estimator, applied to the aggregated
-model–state panel with log thefts as the outcome, produces an overall
-ATT of about −0.772 with a larger standard error (0.285), corresponding
-to an estimated reduction of roughly 53.8 percent.
+The comparison table summarizes estimates from two fundamentally
+different identification strategies: the paper’s interrupted time series
+(ITS) approach and the alternative Callaway–Sant’Anna (CS) DiD approach.
+The ITS regression yields a coefficient of about −0.663 (SE = 0.018),
+implying a 48.5% reduction in thefts. The CS estimator produces an
+overall ATT of about −0.772 (SE = 0.285), corresponding to a 53.8%
+reduction.
 
-Substantively, both methods point to a large and economically meaningful
-deterrence effect of Lojack, and their point estimates are quite close
-in magnitude. The CS estimate is somewhat more negative, suggesting a
-slightly stronger average effect once forbidden comparisons are removed
-and only valid 2×2 DiD comparisons are used, but the difference (about
-0.11 in log points) is small relative to its standard error. This
-pattern is consistent with the recent DiD literature: TWFE can, in
-principle, be biased by heterogeneous treatment effects and negative
-weights, but in this application the TWFE coefficient appears to lie
-very close to the more robust CS estimate. The main value added by CS
-here is not a radically different average effect, but rather a clearer
-decomposition of dynamics and pre‑trends.
+While both point estimates suggest economically large deterrence effects
+and are statistically indistinguishable from each other, they should not
+be interpreted as mutually validating. They answer different causal
+questions under different assumptions:
+
+- ITS asks: “What is the change in theft risk for Lojack-equipped
+  vehicles after program introduction, relative to their own
+  pre-treatment trajectory (adjusted for state-specific quadratic
+  trends)?”
+
+- CS asks: “What is the difference in theft risk for Lojack-equipped
+  vehicles in Lojack states versus never-treated comparison units
+  (including both non-Lojack models and spillover-affected Lojack models
+  in non-Lojack states), assuming parallel trends?”
+
+The fact that CS yields a similar magnitude despite violated pre-trends
+and contaminated controls suggests either: (1) the deterrence effect is
+large enough to dominate these biases, or (2) the biases happen to
+offset. The main value of the CS exercise is not to validate the ITS
+estimate, but to demonstrate empirically why DiD was inappropriate in
+this setting — as the paper argued on conceptual grounds.
 
 <details class="code-fold">
 <summary>Code</summary>
@@ -1842,3 +1893,15 @@ ggsave(
 ```
 
 </details>
+
+The coefficient comparison plot visualizes the point estimates and 95%
+confidence intervals for both approaches. The two confidence intervals
+overlap substantially, indicating that the difference is not
+statistically significant. However, the much wider confidence interval
+for CS (spanning roughly −1.3 to −0.2) versus ITS (spanning roughly
+−0.70 to −0.63) reflects both the smaller effective sample in the
+aggregated CS specification and the additional uncertainty from relying
+on cross-unit comparisons rather than within-unit variation. Visually,
+this reinforces the finding that both approaches point to large negative
+effects, but CS cannot be interpreted as cleanly validating the ITS
+strategy given the violated parallel trends assumption.
