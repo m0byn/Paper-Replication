@@ -69,40 +69,21 @@
 \begin{frame}[t]
 \frametitle{Replication Results \& Data Discrepancy}
 
-\begin{columns}[T]
-\column{0.5\textwidth}
 \textbf{Replication Status:}
 \begin{itemize}
   \item Main results replicated successfully
   \item Standard errors differ slightly
 \end{itemize}
 
-\column{0.5\textwidth}
+\vspace{0.2cm}
+
 \textbf{Data Issue Identified:}
 \begin{itemize}
-  \item Original $N = 16,764$ observations
-  \item Replicated $N = 16,764$ observations
+  \item Replicated \& original $N = 16,764$
+  \item Replicated $\Delta_{LJmodel=1} = 65$
   \item Discrepancy: slight exclusion/inclusion of edge cases
-  \item Impact: point estimates identical, SEs $\pm 5\%$ variation
+  \item Impact: point estimates identical, minor changes in SE
 \end{itemize}
-\end{columns}
-
-\vspace{0.8cm}
-
-\begin{table}[!h]
-\centering
-\small
-\begin{tabular}{lcccc}
-\toprule
-& \multicolumn{2}{c}{\textbf{Original}} & \multicolumn{2}{c}{\textbf{Replicated}} \\
- & Coef & SE & Coef & SE \\
-\midrule
-LJ (Deterrence) & $-0.663$ & 0.018 & $-0.663$ & 0.021 \\
-NLJS\_LJM (Spillover) & $0.417$ & 0.075 & $0.417$ & 0.091 \\
-\bottomrule
-\end{tabular}
-\caption{Main Coefficients: Original vs. Replicated}
-\end{table}
 
 \end{frame}
 
@@ -115,14 +96,14 @@ NLJS\_LJM (Spillover) & $0.417$ & 0.075 & $0.417$ & 0.091 \\
 \textbf{Alternative Identification Strategy:}
 
 \begin{itemize}
-  \item \textcolor{blue}{Original approach:} Interrupted time series (within-unit, flexible trends)
-  \item \textcolor{blue}{CS approach:} Staggered DiD (cross-unit, parallel trends)
+  \item Original approach: Interrupted time series (within-unit, flexible trends)
+  \item CS approach: Staggered DiD (cross-unit, parallel trends)
   \item \textbf{Purpose:} Assess whether deterrence effect is robust across identification strategies
 \end{itemize}
 
 \vspace{0.3cm}
 
-\textbf{Key Caveat:}
+\textbf{Important:}
 \begin{itemize}
   \item Paper explicitly rejects DiD due to spatial externalities
   \item CS treats contaminated units (Lojack models in non-Lojack states) as controls
@@ -211,7 +192,7 @@ $t = +1$ & $-0.789$ & 0.283 \\
   
   \vspace{0.3cm}
   
-  \item \textbf{ITS vs. DiD:} Two fundamentally different identification strategies yield similar deterrence magnitudes ($-0.66$ vs. $-0.77$), suggesting effect is not highly sensitive to within vs. cross-unit identification
+  \item \textbf{ITS vs. DiD:} Two different identification strategies yield similar deterrence magnitudes ($-0.66$ vs. $-0.77$)
   
   \vspace{0.3cm}
   
@@ -222,32 +203,24 @@ $t = +1$ & $-0.789$ & 0.283 \\
   \item \textbf{Spillover effects:} CS framework cannot estimate these—emphasizes why paper designed identification to handle spatial externalities
 \end{enumerate}
 
-\vspace{0.5cm}
-
-\textbf{Broader Implications:}
-\begin{itemize}
-  \item Methodological choice (ITS vs. DiD) depends on data structure and assumptions
-  \item When spatial/cross-unit contamination exists, within-unit variation preferred
-  \item Modern DiD tools (CS) useful for robustness but not panacea for identification
-\end{itemize}
-
 \end{frame}
 
 % ============================================================
-% BACKUP SLIDES BEGIN
+% Thank you!
 % ============================================================
-\appendix
 
 \begin{frame}
-\frametitle{Backup Slides}
-\tableofcontents
+\center
+\textbf{Thank you!}
 \end{frame}
 
 % ============================================================
 % BACKUP 1: Data Preparation
 % ============================================================
+\appendix
+
 \begin{frame}[t, fragile]
-\frametitle{[BACKUP] Data Preparation \& Cohort Structure}
+\frametitle{Data Preparation \& Cohort Structure}
 
 \textbf{CS Panel Construction:}
 \begin{itemize}
@@ -282,41 +255,11 @@ $t = +1$ & $-0.789$ & 0.283 \\
 % BACKUP 2: Event Study Plot
 % ============================================================
 \begin{frame}[t]
-\frametitle{[BACKUP] Event Study: Dynamic Treatment Effects}
+\frametitle{Event Study: Dynamic Treatment Effects}
 
 \begin{center}
-\includegraphics[width=0.9\textwidth]{../Output/Plots/event_study_callaway_santanna_model_state.png}
+\includegraphics[width=0.8\textwidth]{../Output/Plots/event_study_callaway_santanna_model_state.png}
 \end{center}
-
-\vspace{-0.3cm}
-
-\textbf{Interpretation:}
-\begin{itemize}
-  \item Pre-treatment effects ($t < 0$) positive and significant at $t = -2$
-  \item Post-treatment effects strongly negative, growing over time
-  \item Consistent with deterrence story but violates parallel trends
-\end{itemize}
-
-\end{frame}
-
-% ============================================================
-% BACKUP 3: Coefficient Comparison Plot
-% ============================================================
-\begin{frame}[t]
-\frametitle{[BACKUP] Coefficient Comparison: ITS vs. CS}
-
-\begin{center}
-\includegraphics[width=0.85\textwidth]{../Output/Plots/twfe_vs_cs_comparison_model_state.png}
-\end{center}
-
-\vspace{-0.3cm}
-
-\textbf{Key Observation:}
-\begin{itemize}
-  \item Confidence intervals overlap substantially
-  \item ITS: very narrow CI (small SE); CS: much wider CI (cross-unit variation)
-  \item Similar point estimates but different uncertainty—reflects identification strategy differences
-\end{itemize}
 
 \end{frame}
 
@@ -324,7 +267,7 @@ $t = +1$ & $-0.789$ & 0.283 \\
 % BACKUP 4: Full Model Specification (ITS Original)
 % ============================================================
 \begin{frame}[t, fragile]
-\frametitle{[BACKUP] Original ITS Specification (Table 2, Col. 3)}
+\frametitle{Original ITS Specification (Table 2, Col. 3)}
 
 \textbf{Estimating Equation:}
 \[
@@ -364,7 +307,7 @@ NLJS\_NLJM\_After (Cross-model) & $0.049$ & (0.056) \\
 % BACKUP 5: Parallel Trends Detail
 % ============================================================
 \begin{frame}[t]
-\frametitle{[BACKUP] Parallel Trends Test: Full Results}
+\frametitle{Parallel Trends Test: Full Results}
 
 \begin{table}[!h]
 \small
@@ -395,40 +338,10 @@ $t = +3$ & $-1.371$ & 0.061 & -22.541 & $< 0.001$ \\
 \end{frame}
 
 % ============================================================
-% BACKUP 6: Cohort-Specific Effects
-% ============================================================
-\begin{frame}[t]
-\frametitle{[BACKUP] Cohort-Specific Treatment Effects}
-
-\begin{table}[!h]
-\small
-\begin{tabular}{lcccc}
-\toprule
-Cohort & ATT & SE & \% Effect & Significant \\
-\midrule
-2001 (Jalisco) & $-0.947$ & 0.031 & $-61.3\%$ & Yes \\
-2002 (Other metros) & $-0.691$ & 0.410 & $-49.8\%$ & No \\
-\bottomrule
-\end{tabular}
-\caption{Cohort-Aggregated ATTs from CS}
-\end{table}
-
-\vspace{0.5cm}
-
-\textbf{Interpretation:}
-\begin{itemize}
-  \item Early adopter (Jalisco 2001): very precise estimate, strong effect
-  \item Later adopters (2002): larger point estimate but wide CI (small treated group)
-  \item Treatment effect heterogeneity across cohorts not significant
-\end{itemize}
-
-\end{frame}
-
-% ============================================================
 % BACKUP 7: Methodological Discussion
 % ============================================================
 \begin{frame}[t]
-\frametitle{[BACKUP] Identification Strategies: ITS vs. DiD}
+\frametitle{Identification Strategies: ITS vs. DiD}
 
 \begin{columns}[T]
 \column{0.5\textwidth}
@@ -438,7 +351,6 @@ Cohort & ATT & SE & \% Effect & Significant \\
   \item Comparison: each unit to its own pre-trend
   \item Assumption: treatment uncorrelated with state-specific trends
   \item Allows: flexible trend adjustment
-  \item Cannot estimate: spillovers (uses all units as own control)
 \end{itemize}
 
 \column{0.5\textwidth}
@@ -448,7 +360,6 @@ Cohort & ATT & SE & \% Effect & Significant \\
   \item Comparison: treated vs. never-treated
   \item Assumption: parallel trends
   \item Requires: uncontaminated controls
-  \item Can estimate: spillovers (if controls unaffected)
 \end{itemize}
 \end{columns}
 
@@ -467,7 +378,7 @@ Cohort & ATT & SE & \% Effect & Significant \\
 % BACKUP 8: Limitations & Future Work
 % ============================================================
 \begin{frame}[t]
-\frametitle{[BACKUP] Limitations \& Extensions}
+\frametitle{Limitations \& Extensions}
 
 \textbf{CS Implementation Limitations:}
 \begin{enumerate}
@@ -485,14 +396,6 @@ Cohort & ATT & SE & \% Effect & Significant \\
   \item Implement honest DiD (Roth, 2022) accounting for pre-trend violations
   \item Use alternative estimators (Callaway et al., 2021; Sun \& Abraham, 2021) robust to heterogeneity
   \item Examine sensitivity to specification choices (bandwidth, trend order)
-\end{itemize}
-
-\vspace{0.4cm}
-
-\textbf{Key Takeaway:}
-\begin{itemize}
-  \item No estimator is uniformly ``better''—choice depends on data structure and assumptions
-  \item Transparency about assumptions and limitations more important than estimator choice
 \end{itemize}
 
 \end{frame}
