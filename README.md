@@ -14,5 +14,5 @@ All relevant files related to the replication of Gonzalez-Navarro, Marco. 2013. 
 
 All relevant work is done using quarto or LaTeX
 
-- [Replication-MZ](Quarto-Files/Rendered/Replication-MZ/Replication-MZ.md): the script does all data preparation before one can run the analysis.
-- [Presentation-MZ](Presentation/Presentation.pdf): the script does all data preparation before one can run the analysis.
+- [Replication-MZ](Quarto-Files/Rendered/Replication-MZ/Replication-MZ.md): the script does all data preparation and analysis of the replication.
+- [Presentation-MZ](Presentation/Presentation.pdf): the presentation in PDF.
