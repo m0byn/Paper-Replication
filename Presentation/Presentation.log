@@ -1,4 +1,4 @@
-This is pdfTeX, Version 3.141592653-2.6-1.40.27 (MiKTeX 25.4) (preloaded format=pdflatex 2025.6.20)  30 NOV 2025 12:35
+This is pdfTeX, Version 3.141592653-2.6-1.40.27 (MiKTeX 25.4) (preloaded format=pdflatex 2025.6.20)  1 DEC 2025 09:53
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -919,20 +919,20 @@ Dictionary: translator-theorem-dictionary, Language: English
 [1
 
 {C:/Users/mzerobin/AppData/Local/MiKTeX/fonts/map/pdftex/pdftex.map}]
-LaTeX Font Info:    Trying to load font information for U+msa on input line 64.
+LaTeX Font Info:    Trying to load font information for U+msa on input line 55.
 
 
 (C:\Users\mzerobin\AppData\Roaming\MiKTeX\tex/latex/amsfonts\umsa.fd
 File: umsa.fd 2013/01/14 v3.01 AMS symbols A
 )
-LaTeX Font Info:    Trying to load font information for U+msb on input line 64.
+LaTeX Font Info:    Trying to load font information for U+msb on input line 55.
 
 
 (C:\Users\mzerobin\AppData\Roaming\MiKTeX\tex/latex/amsfonts\umsb.fd
 File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 )
 LaTeX Font Info:    Trying to load font information for OT1+mathkerncmss on inp
-ut line 64.
+ut line 55.
 
 (C:\Program Files\MiKTeX\tex/latex/sansmathaccent\ot1mathkerncmss.fd
 File: ot1mathkerncmss.fd 2020/01/31 Fontinst v1.933 font definitions for OT1/ma
@@ -946,7 +946,7 @@ thkerncmss.
 [3
 
 ]
-Overfull \vbox (11.3249pt too high) detected at line 124
+Overfull \vbox (11.13928pt too high) detected at line 119
  []
 
 
@@ -954,10 +954,6 @@ Overfull \vbox (11.3249pt too high) detected at line 124
 [4
 
 ]
-Overfull \vbox (5.64165pt too high) detected at line 180
- []
-
-
 
 [5
 
@@ -970,39 +966,19 @@ Overfull \vbox (5.64165pt too high) detected at line 180
 [7
 
 ]
-\openout4 = `Presentation.vrb'.
-
- (Presentation.vrb)
-Overfull \vbox (10.71616pt too high) detected at line 252
- []
-
-
 
 [8
 
 ]
-<../Output/Plots/event_study_callaway_santanna_model_state.png, id=81, 722.7pt 
-x 433.62pt>
-File: ../Output/Plots/event_study_callaway_santanna_model_state.png Graphic fil
-e (type png)
-<use ../Output/Plots/event_study_callaway_santanna_model_state.png>
-Package pdftex.def Info: ../Output/Plots/event_study_callaway_santanna_model_st
-ate.png  used on input line 264.
-(pdftex.def)             Requested size: 346.67653pt x 208.0029pt.
-
-Overfull \vbox (9.42796pt too high) detected at line 264
+Overfull \vbox (11.3249pt too high) detected at line 268
  []
 
 
 
 [9
 
- <../Output/Plots/event_study_callaway_santanna_model_state.png>]
-\openout4 = `Presentation.vrb'.
-
-
-(Presentation.vrb)
-Overfull \vbox (10.15596pt too high) detected at line 304
+]
+Overfull \vbox (5.64165pt too high) detected at line 324
  []
 
 
@@ -1018,8 +994,56 @@ Overfull \vbox (10.15596pt too high) detected at line 304
 [12
 
 ]
+\openout4 = `Presentation.vrb'.
+
+ (Presentation.vrb)
+Overfull \vbox (10.71616pt too high) detected at line 401
+ []
+
+
 
 [13
+
+]
+<../Output/Plots/event_study_callaway_santanna_model_state.png, id=110, 722.7pt
+ x 433.62pt>
+File: ../Output/Plots/event_study_callaway_santanna_model_state.png Graphic fil
+e (type png)
+<use ../Output/Plots/event_study_callaway_santanna_model_state.png>
+Package pdftex.def Info: ../Output/Plots/event_study_callaway_santanna_model_st
+ate.png  used on input line 413.
+(pdftex.def)             Requested size: 346.67653pt x 208.0029pt.
+
+Overfull \vbox (9.42796pt too high) detected at line 413
+ []
+
+
+
+[14
+
+ <../Output/Plots/event_study_callaway_santanna_model_state.png>]
+\openout4 = `Presentation.vrb'.
+
+
+(Presentation.vrb)
+Overfull \vbox (10.15596pt too high) detected at line 453
+ []
+
+
+
+[15
+
+]
+
+[16
+
+]
+
+[17
+
+]
+
+[18
 
 ]
 \tf@nav=\write6
@@ -1040,13 +1064,13 @@ Package rerunfilecheck Info: File `Presentation.out' has not changed.
 (rerunfilecheck)             Checksum: 5BCEA9CF7D2D9AECE7CAC4018E9F6C5B;81.
  ) 
 Here is how much of TeX's memory you used:
- 22985 strings out of 468186
- 442881 string characters out of 5441641
- 828332 words of memory out of 5000000
- 51016 multiletter control sequences out of 15000+600000
- 638019 words of font info for 80 fonts, out of 8000000 for 9000
+ 23039 strings out of 468186
+ 444101 string characters out of 5441641
+ 829332 words of memory out of 5000000
+ 51060 multiletter control sequences out of 15000+600000
+ 638669 words of font info for 82 fonts, out of 8000000 for 9000
  1141 hyphenation exceptions out of 8191
- 128i,11n,123p,406b,736s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 128i,11n,123p,406b,658s stack positions out of 10000i,1000n,20000p,200000b,200000s
 <C:/Users/mzerobin/AppData/Roaming/MiKTeX/fonts/type1/public/amsfonts/cm/cmmi
 10.pfb><C:/Users/mzerobin/AppData/Roaming/MiKTeX/fonts/type1/public/amsfonts/cm
 /cmss10.pfb><C:/Users/mzerobin/AppData/Roaming/MiKTeX/fonts/type1/public/amsfon
@@ -1057,9 +1081,9 @@ e1/public/amsfonts/cm/cmssi10.pfb><C:/Users/mzerobin/AppData/Roaming/MiKTeX/fon
 ts/type1/public/amsfonts/cm/cmssi8.pfb><C:/Users/mzerobin/AppData/Roaming/MiKTe
 X/fonts/type1/public/amsfonts/cm/cmsy10.pfb><C:/Users/mzerobin/AppData/Roaming/
 MiKTeX/fonts/type1/public/amsfonts/cm/cmsy7.pfb>
-Output written on Presentation.pdf (13 pages, 249948 bytes).
+Output written on Presentation.pdf (18 pages, 262312 bytes).
 PDF statistics:
- 159 PDF objects out of 1000 (max. 8388607)
- 28 named destinations out of 1000 (max. 500000)
- 98 words of extra memory for PDF output out of 10000 (max. 10000000)
+ 191 PDF objects out of 1000 (max. 8388607)
+ 38 named destinations out of 1000 (max. 500000)
+ 104 words of extra memory for PDF output out of 10000 (max. 10000000)
 

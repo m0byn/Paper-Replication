@@ -25,6 +25,150 @@
 % Title slide
 \frame{\titlepage}
 
+
+% ============================================================
+% SLIDE 1: RESEARCH QUESTION & DATA
+% ============================================================
+\begin{frame}[t]
+\frametitle{Research Question \& Data}
+
+\textbf{Research Question:}
+
+\begin{itemize}
+  \item What is the effect of Lojack (stolen vehicle recovery technology) on auto theft rates?
+  \item \textbf{Central motivation:} Does technological deterrence reduce crime, or does it simply displace theft geographically?
+  \item \textbf{Policy implication:} Should crime control be centralized (to internalize spillovers) or can local enforcement suffice?
+\end{itemize}
+
+\vspace{0.2cm}
+
+\textbf{Data:}
+
+\begin{itemize}
+  \item Source: Mexican auto insurance claims database (AMIS), 1999--2004
+  \item Coverage: All reported vehicle thefts in 31 Mexican states
+  \item Unit of observation: state $\times$ model $\times$ vintage $\times$ year
+  \item Total observations: $N = 16,764$ cells
+  \item Treatment: Lojack installed in select Ford models in Jalisco (2001) and Mexico City metro (2002)
+\end{itemize}
+
+\end{frame}
+
+% ============================================================
+% SLIDE 2: METHODOLOGY & IDENTIFICATION STRATEGY
+% ============================================================
+\begin{frame}[t]
+\frametitle{Methodology \& Identification Strategy}
+
+Paper explicitly rejects DiD due likely spillovers and thus contaminated controls
+
+\vspace{0.1cm}
+
+\textbf{Interrupted Time Series (ITS) Strategy:}
+
+\begin{itemize}
+  \item Source of identification: \textbf{within-unit} changes over time
+  \item Each unit serves as its own counterfactual
+  \item Allows estimation of spillovers: uses all units to identify external effects
+  \item Allows for fixed effects (state $\times$ model) and time trends
+  \item Estimated using negative binomial regression (positive \& count data)
+\end{itemize}
+
+\vspace{0.1cm}
+
+{\small \textbf{Key Identifying Assumption:} Lojack introduction uncorrelated with changes in theft risk \textit{beyond} state-specific trends.}
+
+\vspace{0.1cm}
+
+\textbf{Replication with Callaway StAnna estimator:} can be found on \href{https://github.com/m0byn/Paper-Replication}{\textcolor{blue}{Github}} 
+
+\end{frame}
+
+% ============================================================
+% SLIDE 3: CS ALTERNATIVE & RESULTS
+% ============================================================
+\begin{frame}[t]
+\frametitle{Conclusion: Identification Strategies \& Robustness}
+
+\textbf{Main Takeaways:}
+
+\begin{enumerate}
+  \item \textbf{Replication:} Original results confirmed; small data-handling differences explain SE variations
+  
+  \vspace{0.25cm}
+  
+  \item \textbf{ITS vs. CS-DiD:} Two fundamentally different identification strategies yield similar deterrence magnitudes ($-0.66$ vs. $-0.77$), suggesting effect is robust across methodological approaches
+  
+  \vspace{0.25cm}
+  
+  \item \textbf{Pre-trends violation in CS:} Significant positive estimate at event time $t=-2$ empirically validates paper's concern that DiD assumptions fail in this spatial setting
+  
+  \vspace{0.25cm}
+  
+  \item \textbf{Spillover effects:} CS framework cannot estimate these— that is why paper designed identification to handle spatial externalities
+\end{enumerate}
+
+\vspace{0.1cm}
+
+\textbf{Interpretation:}
+\begin{itemize}
+  \item The similarity of point estimates across ITS and CS does \textit{not validate} either method
+  \item CS robustness check supports the paper's concerns about cross-unit comparisons in the presence of spatial effects
+\end{itemize}
+
+\end{frame}
+
+% ============================================================
+% SLIDE 4: LIMITATIONS
+% ============================================================
+\begin{frame}[t]
+\frametitle{Limitations}
+
+\textbf{Limitations of ITS Approach:}
+
+\begin{enumerate}
+  \item \textbf{Trend specification:} Assumes state-specific \textit{quadratic} trends are sufficient
+  \begin{itemize}
+    \item What if true trends are higher-order or nonlinear?
+    \item Misspecification would bias treatment effects
+  \end{itemize}
+  
+  \item \textbf{Unobserved confounds:} Assumes no time-varying state-level shocks correlated with treatment
+  \begin{itemize}
+    \item Police crackdowns, economic shifts, gang activity changes unobserved
+    \item Unobservable factors could drive theft changes independent of Lojack
+  \end{itemize}
+  
+  \item \textbf{Cannot estimate spillovers precisely:} Spillover coefficients rely on model assumptions
+  \begin{itemize}
+    \item Identifying spillovers requires modeling uncontaminated ``nearby'' vs.\ ``distant'' states
+    \item Results sensitive to distance cutoffs (tercile definitions)
+  \end{itemize}
+  
+  \item \textbf{Exposure measurement:} Controls for sales at \textit{time of sale}, not current vehicle stock
+  \begin{itemize}
+    \item Vehicles sold in 1999 still at risk in 2004; data doesn't track cumulative stock
+    \item May overstate or understate theft risk in older vintages
+  \end{itemize}
+\end{enumerate}
+
+\end{frame}
+
+% ============================================================
+% Thank you!
+% ============================================================
+
+\begin{frame}
+\center
+\textbf{Thank you!}
+\end{frame}
+
+% ============================================================
+% BACKUP 1: Data Preparation
+% ============================================================
+\appendix
+
+
 % ============================================================
 % SLIDE 1: PAPER OVERVIEW
 % ============================================================
@@ -206,18 +350,23 @@ $t = +1$ & $-0.789$ & 0.283 \\
 \end{frame}
 
 % ============================================================
-% Thank you!
+% BACKUP: Empirical Specification
 % ============================================================
 
 \begin{frame}
-\center
-\textbf{Thank you!}
-\end{frame}
+\frametitle{Empirical Specification}
+\textbf{Empirical Specification:}
 
-% ============================================================
-% BACKUP 1: Data Preparation
-% ============================================================
-\appendix
+\[
+E[\text{Thefts}_{smvt}] = S_{smvt} \exp(\alpha_{sm} + f_{st} + \beta_{\text{age}} + \gamma_1 LJ + \gamma_2 \text{NLJS\_LJM} + \ldots)
+\]
+
+\begin{itemize}
+  \item $\alpha_{sm}$: state $\times$ model fixed effects (absorb cross-sectional heterogeneity)
+  \item $f_{st}$: state-specific \textbf{quadratic} time trends (flexible within-unit counterfactual)
+  \item $S_{smvt}$: stock of vehicles (exposure); estimated via negative binomial
+\end{itemize}
+\end{frame}
 
 \begin{frame}[t, fragile]
 \frametitle{Data Preparation \& Cohort Structure}
